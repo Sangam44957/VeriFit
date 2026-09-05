@@ -2,7 +2,12 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
   esbuild: false
+  msgpackr-extract: true
+  prisma: true
   unrs-resolver: false
 minimumReleaseAgeExclude:
   - eslint@10.10.0
