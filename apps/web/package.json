@@ -1,0 +1,14 @@
+{
+  "name": "@verifit/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsc --watch --noEmit",
+    "build": "tsc --noEmit",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
