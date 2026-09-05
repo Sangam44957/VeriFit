@@ -10,7 +10,8 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,json,css}\"",
-    "test": "vitest"
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css}\"",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
