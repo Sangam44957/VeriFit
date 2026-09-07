@@ -42,29 +42,29 @@ Commands were run from `/home/sangam/Desktop/VeriFit` on 2026-09-07.
 
 ### Post-audit validation (2026-09-07)
 
-| Command          | Result | Details                                                                 |
-| ---------------- | ------ | ----------------------------------------------------------------------- |
-| `pnpm lint`      | ✅     | 15/15 packages, 0 errors                                                |
-| `pnpm typecheck` | ✅     | 15/15 packages, 0 errors                                                |
-| `pnpm build`     | ✅     | 15/15 packages, 0 errors                                                |
-| `pnpm test`      | ✅     | 27 tests across 4 packages (api: 7, worker: 12, web: 6, database: 2)   |
+| Command          | Result | Details                                                              |
+| ---------------- | ------ | -------------------------------------------------------------------- |
+| `pnpm lint`      | ✅     | 15/15 packages, 0 errors                                             |
+| `pnpm typecheck` | ✅     | 15/15 packages, 0 errors                                             |
+| `pnpm build`     | ✅     | 15/15 packages, 0 errors                                             |
+| `pnpm test`      | ✅     | 27 tests across 4 packages (api: 7, worker: 12, web: 6, database: 2) |
 
 ### Phase 0.5 validation — auth vertical slice (2026-09-07)
 
-| Command          | Result | Details                                                                                 |
-| ---------------- | ------ | --------------------------------------------------------------------------------------- |
-| `pnpm typecheck` | ✅     | 15/15 packages, 1.794s (13 cached)                                                      |
-| `pnpm build`     | ✅     | 15/15 packages, 14.313s (11 cached)                                                     |
+| Command          | Result | Details                                                                                |
+| ---------------- | ------ | -------------------------------------------------------------------------------------- |
+| `pnpm typecheck` | ✅     | 15/15 packages, 1.794s (13 cached)                                                     |
+| `pnpm build`     | ✅     | 15/15 packages, 14.313s (11 cached)                                                    |
 | `pnpm test`      | ✅     | 52 tests across 5 packages (api: 16, auth: 8, web: 14, worker: 12, database: 2), 4.07s |
 
 Web build routes:
 
-| Route               | Type    | Size    |
-| ------------------- | ------- | ------- |
-| `/`                 | Static  | 131 B   |
-| `/login`            | Static  | 1.07 kB |
-| `/api/auth/login`   | Dynamic | 131 B   |
-| `/health`           | Dynamic | 131 B   |
+| Route             | Type    | Size    |
+| ----------------- | ------- | ------- |
+| `/`               | Static  | 131 B   |
+| `/login`          | Static  | 1.07 kB |
+| `/api/auth/login` | Dynamic | 131 B   |
+| `/health`         | Dynamic | 131 B   |
 
 The passing test result must not be treated as evidence that the application works end to end. The current tests are mostly isolated unit or render tests and do not boot the applications or exercise real HTTP requests.
 
@@ -95,7 +95,6 @@ The worker does not currently process jobs. `WorkerManager` owns an empty map an
 | ------------- | -------------------------- | ----------------------------------------------------------------------------------- |
 | `GET /`       | Implemented                | Static landing page with a health link.                                             |
 | `GET /health` | Implemented but misleading | Always renders `Operational`; it does not call the API, worker, Redis, or database. |
-
 
 - `
 
@@ -166,23 +165,23 @@ These are recommendations, not mandatory rewrites:
 
 ### Endpoints added
 
-| Endpoint                | Method | Description                                                      |
-| ----------------------- | ------ | ---------------------------------------------------------------- |
-| `/api/v1/auth/register` | POST   | Creates a user; returns `{ id, email, role }`                    |
-| `/api/v1/auth/login`    | POST   | Verifies password; returns `{ accessToken }` (JWT, 1h expiry)   |
+| Endpoint                | Method | Description                                                   |
+| ----------------------- | ------ | ------------------------------------------------------------- |
+| `/api/v1/auth/register` | POST   | Creates a user; returns `{ id, email, role }`                 |
+| `/api/v1/auth/login`    | POST   | Verifies password; returns `{ accessToken }` (JWT, 1h expiry) |
 
 ### Packages implemented
 
-| Package         | What was added                                                                          |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `packages/auth` | `hashPassword`, `verifyPassword`, `signJwt`, `verifyJwt`; JWT payload type             |
-| `apps/api`      | `AuthModule`, `AuthService`, `AuthController`, DTOs with class-validator                |
-| `apps/web`      | `/login` page with form; `/api/auth/login` Next.js route handler; httpOnly cookie       |
+| Package         | What was added                                                                    |
+| --------------- | --------------------------------------------------------------------------------- |
+| `packages/auth` | `hashPassword`, `verifyPassword`, `signJwt`, `verifyJwt`; JWT payload type        |
+| `apps/api`      | `AuthModule`, `AuthService`, `AuthController`, DTOs with class-validator          |
+| `apps/web`      | `/login` page with form; `/api/auth/login` Next.js route handler; httpOnly cookie |
 
 ### Schema changes
 
-| Change                          | Migration |
-| ------------------------------- | --------- |
+| Change                              | Migration |
+| ----------------------------------- | --------- |
 | Add `passwordHash String` to `User` | Applied   |
 
 ### Notable fixes during verification

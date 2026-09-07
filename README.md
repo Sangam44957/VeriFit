@@ -92,7 +92,6 @@ API_DOCS_ENABLED=true
 WORKER_PORT=3002           # Worker process port
 ```
 
-
 ## Health endpoints
 
 **API** — `GET /api/v1/health/live` and `GET /api/v1/health/ready`

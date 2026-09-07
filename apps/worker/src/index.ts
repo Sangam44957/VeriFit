@@ -56,10 +56,12 @@ async function main() {
     deadline.unref();
 
     try {
-      await new Promise<void>((resolve) => server.close((err) => {
-        if (err) logger.error('Error closing HTTP server:', err);
-        resolve();
-      }));
+      await new Promise<void>((resolve) =>
+        server.close((err) => {
+          if (err) logger.error('Error closing HTTP server:', err);
+          resolve();
+        }),
+      );
       await workerManager.shutdown();
       await redis.quit();
       logger.info('Worker shutdown complete');

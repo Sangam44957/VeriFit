@@ -19,14 +19,14 @@ You will receive an acknowledgement within 48 hours and a resolution timeline wi
 
 ## Scope
 
-| Area | In scope |
-|------|----------|
-| Authentication / authorisation bypass | ✅ |
-| SQL injection | ✅ |
-| Secrets exposed in source or logs | ✅ |
-| Dependency vulnerabilities (CVSS ≥ 7) | ✅ |
-| Denial of service | ⚠️ case-by-case |
-| Social engineering | ❌ |
+| Area                                  | In scope        |
+| ------------------------------------- | --------------- |
+| Authentication / authorisation bypass | ✅              |
+| SQL injection                         | ✅              |
+| Secrets exposed in source or logs     | ✅              |
+| Dependency vulnerabilities (CVSS ≥ 7) | ✅              |
+| Denial of service                     | ⚠️ case-by-case |
+| Social engineering                    | ❌              |
 
 ## Security controls
 

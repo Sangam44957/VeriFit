@@ -8,15 +8,20 @@ function log(level: Level, message: string, data?: unknown): void {
   if (LEVELS[level] < minLevel) return;
   const line = `[${level.toUpperCase()}] ${message}`;
   if (level === 'error') {
-    console.error(line, data instanceof Error ? { message: data.message, stack: data.stack } : (data ?? ''));
+    console.error(
+      line,
+      data instanceof Error ? { message: data.message, stack: data.stack } : (data ?? ''),
+    );
+  } else if (level === 'warn') {
+    console.warn(line, data ?? '');
   } else {
-    console.log(line, data ?? '');
+    console.error(line, data ?? '');
   }
 }
 
 export const logger = {
   debug: (message: string, data?: unknown) => log('debug', message, data),
-  info:  (message: string, data?: unknown) => log('info',  message, data),
-  warn:  (message: string, data?: unknown) => log('warn',  message, data),
+  info: (message: string, data?: unknown) => log('info', message, data),
+  warn: (message: string, data?: unknown) => log('warn', message, data),
   error: (message: string, error?: unknown) => log('error', message, error),
 };

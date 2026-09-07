@@ -1,5 +1,4 @@
-const API_HEALTH_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_HEALTH_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 type ApiHealth = {
   status: string;
@@ -51,8 +50,7 @@ export default async function HealthPage() {
             <span className="font-semibold">Detail:</span> {detail}
           </p>
           <p className="text-sm text-slate-600">
-            <span className="font-semibold">Timestamp:</span>{' '}
-            {new Date().toISOString()}
+            <span className="font-semibold">Timestamp:</span> {new Date().toISOString()}
           </p>
         </div>
       </div>

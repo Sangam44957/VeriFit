@@ -95,7 +95,11 @@ describe('WorkerManager', () => {
       (manager as unknown as { workers: Map<string, unknown> }).workers.has(
         QUEUE_NAMES.VERIFICATION_GITHUB,
       )
-        ? (() => { throw new Error(`Worker already registered for queue: ${QUEUE_NAMES.VERIFICATION_GITHUB}`); })()
+        ? (() => {
+            throw new Error(
+              `Worker already registered for queue: ${QUEUE_NAMES.VERIFICATION_GITHUB}`,
+            );
+          })()
         : null,
     ).toThrow('Worker already registered');
   });
@@ -158,7 +162,7 @@ describe('health routes', () => {
   it('GET /health/ready returns 200 when Redis is healthy', async () => {
     const res = await fetch(`${baseUrl}/health/ready`);
     expect(res.status).toBe(200);
-    const body = await res.json() as { status: string; redis: { status: string } };
+    const body = (await res.json()) as { status: string; redis: { status: string } };
     expect(body.status).toBe('healthy');
     expect(body.redis.status).toBe('connected');
   });
@@ -167,7 +171,7 @@ describe('health routes', () => {
     mockRedis.ping.mockRejectedValueOnce(new Error('down'));
     const res = await fetch(`${baseUrl}/health/ready`);
     expect(res.status).toBe(503);
-    const body = await res.json() as { status: string };
+    const body = (await res.json()) as { status: string };
     expect(body.status).toBe('unhealthy');
   });
 
@@ -184,7 +188,7 @@ describe('health routes', () => {
     const { port } = localServer.address() as AddressInfo;
 
     const res = await fetch(`http://127.0.0.1:${port}/health/ready`);
-    const body = await res.json() as { workers: { registered: string[] } };
+    const body = (await res.json()) as { workers: { registered: string[] } };
     expect(body.workers.registered).toContain(QUEUE_NAMES.VERIFICATION_GITHUB);
 
     await new Promise<void>((resolve) => localServer.close(() => resolve()));
