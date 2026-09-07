@@ -22,5 +22,5 @@ export function signJwt(payload: object, secret: string, expiresIn: string): str
 }
 
 export function verifyJwt(token: string, secret: string): object {
-  return jwt.verify(token, secret) as object;
+  return jwt.verify(token, secret, { algorithms: ['HS256'] }) as object;
 }

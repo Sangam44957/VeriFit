@@ -33,7 +33,7 @@ You will receive an acknowledgement within 48 hours and a resolution timeline wi
 - Dependencies scanned on every CI run (`pnpm audit --audit-level=high`)
 - SAST via Semgrep (`p/typescript`, `p/nodejs`, `p/secrets`) on every push
 - Secret scanning via TruffleHog on every push
-- Passwords stored as bcrypt hashes — never in plaintext
+- Passwords stored as argon2id hashes — never in plaintext
 - `DATABASE_URL` and Redis credentials kept in `.env.local` (git-ignored)
 
 ## Disclosure policy

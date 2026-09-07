@@ -10,7 +10,7 @@ const mockUser = {
   id: 'user_1',
   email: 'test@example.com',
   passwordHash: '',
-  role: 'STAFF' as const,
+  role: 'STUDENT' as const,
   organizationId: 'org_1',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -22,6 +22,9 @@ function makePrismaMock() {
       user: {
         findUnique: vi.fn(),
         create: vi.fn(),
+      },
+      organization: {
+        findUnique: vi.fn(),
       },
       $connect: vi.fn().mockResolvedValue(undefined),
       $disconnect: vi.fn().mockResolvedValue(undefined),
@@ -62,22 +65,33 @@ describe('AuthController', () => {
   describe('POST /api/v1/auth/register', () => {
     it('201 — creates user and returns id, email, role', async () => {
       prismaMock.client.user.findUnique.mockResolvedValue(null);
+      prismaMock.client.organization.findUnique.mockResolvedValue({ id: 'org_1' });
       prismaMock.client.user.create.mockResolvedValue({
         id: 'user_1',
         email: 'new@example.com',
-        role: 'STAFF',
+        role: 'STUDENT',
       });
 
       const res = await request(app.getHttpServer()).post('/api/v1/auth/register').send({
         email: 'new@example.com',
         password: 'password123',
         organizationId: 'org_1',
-        role: 'STAFF',
       });
 
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({ id: 'user_1', email: 'new@example.com', role: 'STAFF' });
+      expect(res.body).toMatchObject({ id: 'user_1', email: 'new@example.com', role: 'STUDENT' });
       expect(res.body).not.toHaveProperty('passwordHash');
+    });
+
+    it('400 — role field is rejected (forbidNonWhitelisted)', async () => {
+      const res = await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+        email: 'attacker@example.com',
+        password: 'password123',
+        organizationId: 'org_1',
+        role: 'ADMIN',
+      });
+
+      expect(res.status).toBe(400);
     });
 
     it('409 — duplicate email', async () => {
@@ -87,7 +101,6 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'password123',
         organizationId: 'org_1',
-        role: 'STAFF',
       });
 
       expect(res.status).toBe(409);
@@ -98,7 +111,6 @@ describe('AuthController', () => {
         email: 'not-an-email',
         password: 'password123',
         organizationId: 'org_1',
-        role: 'STAFF',
       });
 
       expect(res.status).toBe(400);
@@ -109,7 +121,6 @@ describe('AuthController', () => {
         email: 'valid@example.com',
         password: 'short',
         organizationId: 'org_1',
-        role: 'STAFF',
       });
 
       expect(res.status).toBe(400);

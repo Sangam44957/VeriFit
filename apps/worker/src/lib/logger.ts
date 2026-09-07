@@ -15,7 +15,7 @@ function log(level: Level, message: string, data?: unknown): void {
   } else if (level === 'warn') {
     console.warn(line, data ?? '');
   } else {
-    console.error(line, data ?? '');
+    console.log(line, data ?? '');
   }
 }
 

@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Quality (typecheck · lint · format)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,6 +26,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @verifit/database db:generate
+      - run: pnpm run test:verify
       - run: pnpm run typecheck
       - run: pnpm run lint
       - run: pnpm run format:check
@@ -28,6 +34,26 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: verifit
+          POSTGRES_PASSWORD: verifit
+          POSTGRES_DB: verifit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U verifit -d verifit"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://verifit:verifit@localhost:5432/verifit
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+      CORS_ORIGINS: http://localhost:3000
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -39,11 +65,14 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @verifit/database db:generate
+      - name: Apply migrations
+        run: pnpm --filter @verifit/database exec prisma migrate deploy
       - run: pnpm run test
 
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -60,6 +89,7 @@ jobs:
   security-deps:
     name: Security · Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -75,6 +105,7 @@ jobs:
   security-sast:
     name: Security · SAST (Semgrep)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       security-events: write
     steps:
@@ -91,6 +122,7 @@ jobs:
   security-secrets:
     name: Security · Secret Scanning (TruffleHog)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,6 +134,7 @@ jobs:
   db-migrations:
     name: DB · Migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
@@ -138,6 +171,7 @@ jobs:
   infra-docker:
     name: Infra · Docker Compose Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Validate docker compose config
@@ -146,6 +180,7 @@ jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs:
       - quality
       - tests

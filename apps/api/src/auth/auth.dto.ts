@@ -1,5 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { Role } from '@verifit/database';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -12,9 +11,6 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   organizationId!: string;
-
-  @IsEnum(Role)
-  role!: Role;
 }
 
 export class LoginDto {

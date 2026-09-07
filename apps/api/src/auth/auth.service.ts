@@ -1,6 +1,6 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { hashPassword, verifyPassword, signJwt } from '@verifit/auth';
-import { PrismaService } from '@verifit/database';
+import { PrismaService, Role } from '@verifit/database';
 import { AppConfigService } from '../config/app-config.service.js';
 import { LoginDto, RegisterDto } from './auth.dto.js';
 
@@ -15,12 +15,18 @@ export class AuthService {
     const existing = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already registered');
 
+    const org = await this.prisma.client.organization.findUnique({
+      where: { id: dto.organizationId },
+      select: { id: true },
+    });
+    if (!org) throw new BadRequestException('Invalid organizationId');
+
     const passwordHash = await hashPassword(dto.password);
     const user = await this.prisma.client.user.create({
       data: {
         email: dto.email,
         passwordHash,
-        role: dto.role,
+        role: Role.STUDENT,
         organizationId: dto.organizationId,
       },
       select: { id: true, email: true, role: true },
@@ -29,12 +35,14 @@ export class AuthService {
     return user;
   }
 
+  private readonly dummyHash =
+    '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RUlORVhJU1RTREFUQQ';
+
   async login(dto: LoginDto) {
     const user = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    const valid = await verifyPassword(dto.password, user?.passwordHash ?? this.dummyHash);
 
-    const valid = await verifyPassword(dto.password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !valid) throw new UnauthorizedException('Invalid credentials');
 
     const accessToken = signJwt(
       { sub: user.id, email: user.email, role: user.role },
