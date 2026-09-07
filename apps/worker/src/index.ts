@@ -1,8 +1,8 @@
 import { Redis } from 'ioredis';
-import express from 'express';
-import { loadRedisConfig, getRedisConnectionUrl } from './config/redis.js';
+import { loadRedisConfig, getRedisConnectionUrlRedacted } from './config/redis.js';
 import { WorkerManager } from './worker/worker-manager.js';
 import { HealthService } from './health/health-service.js';
+import { buildApp } from './health/health-router.js';
 import { logger } from './lib/logger.js';
 
 async function main() {
@@ -20,30 +20,23 @@ async function main() {
   });
 
   redis.on('connect', () => {
-    logger.info(`Redis connected: ${getRedisConnectionUrl(redisConfig)}`);
+    logger.info(`Redis connected: ${getRedisConnectionUrlRedacted(redisConfig)}`);
   });
 
   redis.on('error', (err) => {
     logger.error('Redis error:', err);
   });
 
-  const workerManager = new WorkerManager(redis);
+  const workerManager = new WorkerManager();
   const healthService = new HealthService(redis);
 
-  const app = express();
-  const port = process.env.PORT ?? 3002;
+  const rawPort = process.env.WORKER_PORT ?? process.env.PORT ?? '3002';
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid worker port: "${rawPort}". Must be an integer between 1 and 65535.`);
+  }
 
-  app.get('/health/live', (_req, res) => {
-    res.json({ status: 'alive' });
-  });
-
-  app.get('/health/ready', async (_req, res) => {
-    const health = await healthService.getHealth(
-      Array.from(workerManager.getWorkers().keys()),
-    );
-    res.status(health.status === 'healthy' ? 200 : 503).json(health);
-  });
-
+  const app = buildApp(healthService, workerManager);
   const server = app.listen(port, () => {
     logger.info(`Worker health server listening on port ${port}`);
   });
@@ -55,14 +48,25 @@ async function main() {
     shuttingDown = true;
     logger.info('Shutdown signal received');
 
-    await new Promise<void>((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()));
-    });
+    // Hard deadline: force exit after 10 s regardless of what hangs
+    const deadline = setTimeout(() => {
+      logger.error('Shutdown deadline exceeded — forcing exit');
+      process.exit(1);
+    }, 10_000);
+    deadline.unref();
 
-    await workerManager.shutdown();
-    await redis.quit();
-    logger.info('Worker shutdown complete');
-    process.exit(0);
+    try {
+      await new Promise<void>((resolve) => server.close((err) => {
+        if (err) logger.error('Error closing HTTP server:', err);
+        resolve();
+      }));
+      await workerManager.shutdown();
+      await redis.quit();
+      logger.info('Worker shutdown complete');
+    } finally {
+      clearTimeout(deadline);
+      process.exit(0);
+    }
   };
 
   process.on('SIGTERM', () => void shutdown());

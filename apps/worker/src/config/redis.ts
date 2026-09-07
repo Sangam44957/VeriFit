@@ -21,5 +21,16 @@ export function loadRedisConfig(): RedisConfig {
 }
 
 export function getRedisConnectionUrl(config: RedisConfig): string {
-  return `redis://${config.password ? '***@' : ''}${config.host}:${config.port}/${config.database}`;
+  const url = new URL(`redis://${config.host}`);
+  url.port = String(config.port);
+  url.pathname = `/${config.database}`;
+  if (config.password) url.password = config.password;
+  return url.toString();
+}
+
+/** Redacted URL safe for logging — password replaced with *** */
+export function getRedisConnectionUrlRedacted(config: RedisConfig): string {
+  const url = new URL(getRedisConnectionUrl(config));
+  if (url.password) url.password = '***';
+  return url.toString();
 }

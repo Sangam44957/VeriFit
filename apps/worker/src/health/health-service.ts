@@ -24,8 +24,14 @@ export class HealthService {
     let redisLatency: number | undefined;
 
     try {
+      const TIMEOUT_MS = 2000;
       const start = Date.now();
-      await this.redis.ping();
+      await Promise.race([
+        this.redis.ping(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('ping timeout')), TIMEOUT_MS),
+        ),
+      ]);
       redisLatency = Date.now() - start;
       redisStatus = 'connected';
     } catch (error) {

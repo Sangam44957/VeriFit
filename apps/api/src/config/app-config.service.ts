@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-function parsePort(value: string | undefined): number {
-  const port = Number(value ?? '3001');
+function parsePort(value: string | undefined, defaultPort: number): number {
+  const port = Number(value ?? String(defaultPort));
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Invalid PORT value: ${value ?? '<undefined>'}`);
+    throw new Error(`Invalid port value: ${value ?? '<undefined>'}`);
   }
 
   return port;
@@ -15,6 +15,11 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
   if (value === 'true') return true;
   if (value === 'false') return false;
   throw new Error(`Invalid boolean value: ${value}`);
+}
+
+function requireString(value: string | undefined, name: string): string {
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
 }
 
 function parseOrigins(value: string | undefined): string[] {
@@ -35,14 +40,14 @@ export class AppConfigService {
   readonly port: number;
   readonly corsOrigins: string[];
   readonly apiDocsEnabled: boolean;
-  readonly databaseUrl: string | undefined;
   readonly nodeEnv: string;
+  readonly jwtSecret: string;
 
   constructor() {
-    this.port = parsePort(process.env.PORT);
+    this.port = parsePort(process.env.API_PORT, 3001);
     this.corsOrigins = parseOrigins(process.env.CORS_ORIGINS);
     this.apiDocsEnabled = parseBoolean(process.env.API_DOCS_ENABLED, false);
-    this.databaseUrl = process.env.DATABASE_URL?.trim() || undefined;
     this.nodeEnv = process.env.NODE_ENV ?? 'development';
+    this.jwtSecret = requireString(process.env.JWT_SECRET, 'JWT_SECRET');
   }
 }

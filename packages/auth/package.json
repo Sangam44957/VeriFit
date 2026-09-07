@@ -2,13 +2,22 @@
   "name": "@verifit/auth",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "scripts": {
     "build": "tsc",
     "lint": "eslint .",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "argon2": "^0.43.0",
+    "jsonwebtoken": "^9.0.2"
+  },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.0.0",
+    "typescript": "5.9.3",
+    "vitest": "^3.2.0"
   }
 }

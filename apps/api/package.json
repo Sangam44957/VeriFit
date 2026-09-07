@@ -5,7 +5,7 @@
   "type": "module",
   "description": "VeriFit NestJS API",
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "node --env-file=../../.env.local node_modules/@nestjs/cli/bin/nest.js start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint . --max-warnings 0",
@@ -23,6 +23,7 @@
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/swagger": "^12.0.1",
     "@nestjs/terminus": "^12.0.0",
+    "@verifit/auth": "workspace:*",
     "@verifit/database": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -34,9 +35,13 @@
     "@nestjs/cli": "^12.0.0",
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
+    "@swc/core": "^1.16.2",
     "@types/node": "^22.20.1",
+    "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.0",
+    "supertest": "^7.2.2",
     "typescript": "5.9.3",
+    "unplugin-swc": "^1.5.11",
     "vitest": "^5.0.0"
   }
 }

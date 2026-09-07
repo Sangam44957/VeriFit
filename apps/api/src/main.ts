@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -13,6 +13,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
   app.use(helmet());
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
 
   app.setGlobalPrefix('api/v1');
 
@@ -21,7 +22,7 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  if (config.apiDocsEnabled) {
+  if (config.apiDocsEnabled && config.nodeEnv !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('VeriFit API')
       .setDescription(
@@ -39,7 +40,7 @@ async function bootstrap(): Promise<void> {
 
   logger.log(`VeriFit API listening on port ${config.port}`);
 
-  if (config.apiDocsEnabled) {
+  if (config.apiDocsEnabled && config.nodeEnv !== 'production') {
     logger.log(`Swagger available at http://localhost:${config.port}/api/docs`);
   }
 }

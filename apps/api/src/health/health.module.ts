@@ -12,7 +12,7 @@ import { HealthController } from './health.controller.js';
     {
       provide: 'DATABASE_HEALTH',
       useFactory: (prisma: PrismaService): DatabaseHealth => ({
-        check: () => prisma.$queryRaw`SELECT 1`.then(() => undefined),
+        check: () => prisma.client.$queryRaw`SELECT 1`.then(() => undefined),
       }),
       inject: [PrismaService],
     },

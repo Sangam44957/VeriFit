@@ -7,10 +7,14 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
+    "test:verify": "node scripts/verify-test-scripts.mjs",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "db:migrate": "pnpm --filter @verifit/database db:migrate:dev",
+    "db:seed": "pnpm --filter @verifit/database db:seed",
+    "db:studio": "pnpm --filter @verifit/database db:studio"
   },
   "engines": {
     "node": ">=24.0.0",

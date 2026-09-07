@@ -2,49 +2,45 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { HealthController } from './health.controller.js';
 
+function makeHealth(result: unknown) {
+  return { check: vi.fn().mockResolvedValue(result) };
+}
+
+function makeDb(resolves: boolean) {
+  return {
+    check: resolves
+      ? vi.fn().mockResolvedValue({ database: { status: 'up' } })
+      : vi.fn().mockRejectedValue(new Error('db down')),
+  };
+}
+
 describe('HealthController', () => {
-  it('checks liveness without requiring database access', async () => {
-    const health = {
-      check: vi.fn().mockResolvedValue({
-        status: 'ok',
-      }),
-    };
-
-    const database = {
-      check: vi.fn(),
-    };
-
-    const controller = new HealthController(health as never, database as never);
-
-    const result = await controller.live();
-
-    expect(result).toEqual({
-      status: 'ok',
-    });
-
-    expect(health.check).toHaveBeenCalledOnce();
-    expect(database.check).not.toHaveBeenCalled();
+  it('live() calls health.check with no indicators', async () => {
+    const health = makeHealth({ status: 'ok' });
+    const controller = new HealthController(health as never, makeDb(true) as never);
+    await controller.live();
+    expect(health.check).toHaveBeenCalledWith([]);
   });
 
-  it('checks dependencies for readiness', async () => {
-    const health = {
-      check: vi.fn().mockResolvedValue({
-        status: 'ok',
-      }),
-    };
+  it('live() does not call DatabaseHealthIndicator', async () => {
+    const db = makeDb(true);
+    const controller = new HealthController(makeHealth({ status: 'ok' }) as never, db as never);
+    await controller.live();
+    expect(db.check).not.toHaveBeenCalled();
+  });
 
-    const database = {
-      check: vi.fn().mockResolvedValue({
-        database: {
-          status: 'up',
-        },
-      }),
-    };
+  it('ready() calls health.check with a database indicator', async () => {
+    const health = makeHealth({ status: 'ok', info: { database: { status: 'up' } } });
+    const db = makeDb(true);
+    const controller = new HealthController(health as never, db as never);
+    const result = await controller.ready();
+    expect(health.check).toHaveBeenCalledWith([expect.any(Function)]);
+    expect(result).toMatchObject({ status: 'ok' });
+  });
 
-    const controller = new HealthController(health as never, database as never);
-
-    await controller.ready();
-
-    expect(health.check).toHaveBeenCalledOnce();
+  it('ready() propagates database failure', async () => {
+    const health = { check: vi.fn().mockRejectedValue(new Error('db down')) };
+    const controller = new HealthController(health as never, makeDb(false) as never);
+    await expect(controller.ready()).rejects.toThrow('db down');
   });
 });
