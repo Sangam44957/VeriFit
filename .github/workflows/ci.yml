@@ -7,36 +7,150 @@ on:
     branches: [main]
 
 jobs:
-  ci:
-    name: Typecheck · Lint · Format · Test · Build
+  quality:
+    name: Quality (typecheck · lint · format)
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
-
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run format:check
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test
 
-      - name: Typecheck
-        run: pnpm run typecheck
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
 
-      - name: Lint
-        run: pnpm run lint
+  security-deps:
+    name: Security · Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
 
-      - name: Format check
-        run: pnpm run format:check
+  security-sast:
+    name: Security · SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/typescript
+            p/nodejs
+            p/secrets
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-      - name: Test
-        run: pnpm run test
+  security-secrets:
+    name: Security · Secret Scanning (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: trufflesecurity/trufflehog@v3.88.28
+        with:
+          extra_args: --only-verified
 
-      - name: Build
-        run: pnpm run build
+  db-migrations:
+    name: DB · Migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: verifit
+          POSTGRES_PASSWORD: verifit
+          POSTGRES_DB: verifit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U verifit -d verifit"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run migrations
+        run: pnpm --filter @verifit/database exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://verifit:verifit@localhost:5432/verifit
+      - name: Validate schema
+        run: pnpm --filter @verifit/database exec prisma validate
+        env:
+          DATABASE_URL: postgresql://verifit:verifit@localhost:5432/verifit
+
+  infra-docker:
+    name: Infra · Docker Compose Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker compose config
+        run: docker compose config --quiet
+
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    needs:
+      - quality
+      - tests
+      - build
+      - security-deps
+      - security-sast
+      - security-secrets
+      - db-migrations
+      - infra-docker
+    steps:
+      - run: echo "All jobs passed ✅"
