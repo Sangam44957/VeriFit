@@ -145,13 +145,22 @@ describe('health routes', () => {
     const app = buildApp(healthService, workerManager);
 
     await new Promise<void>((resolve) => {
-      server = app.listen(0, resolve); // port 0 = OS-assigned ephemeral port
+      server = app.listen(0, () => {
+        resolve();
+      }); // port 0 = OS-assigned ephemeral port
     });
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;
   });
 
-  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  afterAll(
+    () =>
+      new Promise<void>((resolve) =>
+        server.close(() => {
+          resolve();
+        }),
+      ),
+  );
 
   it('GET /health/live returns 200 with status alive', async () => {
     const res = await fetch(`${baseUrl}/health/live`);
@@ -191,6 +200,10 @@ describe('health routes', () => {
     const body = (await res.json()) as { workers: { registered: string[] } };
     expect(body.workers.registered).toContain(QUEUE_NAMES.VERIFICATION_GITHUB);
 
-    await new Promise<void>((resolve) => localServer.close(() => resolve()));
+    await new Promise<void>((resolve) =>
+      localServer.close(() => {
+        resolve();
+      }),
+    );
   });
 });
