@@ -1,13 +1,12 @@
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 
-export type Role = 'ADMIN' | 'STAFF' | 'STUDENT';
+export type { UserRole, AccountStatus, JwtPayload, TokenRecordMetadata, AuthenticatedUser, GoogleOAuthProfile, OAuthProviderConfig, TokenRecord, OAuthState, AuthResult } from './types/index.js';
+export { JwtService } from './services/jwt.service.js';
+export type { JwtConfig, TokenSubject } from './services/jwt.service.js';
 
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  role: Role;
-}
+// Keep Role as a convenience alias so existing consumers are unaffected.
+export type Role = 'ADMIN' | 'STAFF' | 'STUDENT';
 
 export async function hashPassword(plain: string): Promise<string> {
   return argon2.hash(plain);

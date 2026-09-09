@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { hashPassword, verifyPassword, signJwt, verifyJwt, type JwtPayload } from './index.js';
 
 const SECRET = 'test-secret';
-const PAYLOAD: JwtPayload = { sub: 'user_1', email: 'a@example.com', role: 'ADMIN' };
+const PAYLOAD: JwtPayload = { sub: 'user_1', jti: 'test-jti', iss: 'verifit', aud: 'verifit-api', email: 'a@example.com', role: 'ADMIN', organizationId: 'org_1' };
 
 describe('hashPassword', () => {
   it('returns a hash different from the plain text', async () => {
