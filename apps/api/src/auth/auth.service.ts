@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { hashPassword, verifyPassword, signJwt } from '@verifit/auth';
 import { PrismaService, Role } from '@verifit/database';
 import { AppConfigService } from '../config/app-config.service.js';
@@ -35,8 +40,7 @@ export class AuthService {
     return user;
   }
 
-  private readonly dummyHash =
-    '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RUlORVhJU1RTREFUQQ';
+  private readonly dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RUlORVhJU1RTREFUQQ';
 
   async login(dto: LoginDto) {
     const user = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
