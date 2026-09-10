@@ -2,9 +2,19 @@ import 'reflect-metadata';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard.js';
-import { JwtService, signJwt } from '@verifit/auth';
+import jwt from 'jsonwebtoken';
+import { JwtService } from '@verifit/auth';
 import type { AuthenticatedUser } from '@verifit/auth';
+import type { AuthRepository } from '@verifit/database';
+
+// Stub: no token records exist — nothing is revoked.
+const stubAuthRepository = {
+  findByJti: async () => null,
+} as unknown as AuthRepository;
+
+const reflector = new Reflector();
 
 const jwtConfig = {
   secret: 'test-secret-32-chars-minimum-ok!!',
@@ -27,8 +37,16 @@ function makeContext(
     method: string;
     path: string;
   }>,
+  isPublic = false,
 ) {
+  const handler = {};
+  const cls = {};
+  if (isPublic) {
+    Reflect.defineMetadata('is_public', true, handler);
+  }
   return {
+    getHandler: () => handler,
+    getClass: () => cls,
     switchToHttp: () => ({
       getRequest: () => ({ cookies: {}, headers: {}, method: 'GET', path: '/test', ...req }),
     }),
@@ -40,7 +58,13 @@ let guard: AuthGuard;
 
 beforeEach(() => {
   svc = new JwtService(jwtConfig);
-  guard = new AuthGuard(svc);
+  guard = new AuthGuard(svc, stubAuthRepository, reflector);
+});
+
+describe('AuthGuard — @Public() bypass', () => {
+  it('allows request with no token when handler is marked @Public()', async () => {
+    expect(await guard.canActivate(makeContext({}, true))).toBe(true);
+  });
 });
 
 describe('AuthGuard — happy path', () => {
@@ -59,7 +83,11 @@ describe('AuthGuard — happy path', () => {
   it('attaches strongly typed AuthenticatedUser to req.user', async () => {
     const token = svc.generateToken(subject);
     const req = { cookies: { jwt: token }, headers: {}, method: 'GET', path: '/test' };
-    const ctx = { switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext;
+    const ctx = makeContext({ cookies: { jwt: token } });
+    // Override getRequest to return our tracked req object
+    (ctx as unknown as { switchToHttp: () => unknown }).switchToHttp = () => ({
+      getRequest: () => req,
+    });
     await guard.canActivate(ctx);
     const user = req as unknown as { user: AuthenticatedUser };
     expect(user.user.id).toBe(subject.sub);
@@ -173,10 +201,10 @@ describe('AuthGuard — invalid / expired token', () => {
 });
 
 describe('AuthGuard — missing required claims', () => {
-  // Use signJwt from @verifit/auth to craft tokens with missing claims.
-  // These tokens have valid signatures but incomplete payloads.
+  // Craft tokens with missing claims using jsonwebtoken directly — JwtService
+  // enforces the full payload so we bypass it here intentionally.
   it('rejects payload without sub', async () => {
-    const token = signJwt(
+    const token = jwt.sign(
       {
         jti: 'x',
         iss: jwtConfig.issuer,
@@ -186,7 +214,7 @@ describe('AuthGuard — missing required claims', () => {
         role: 'STUDENT',
       },
       jwtConfig.secret,
-      '15m',
+      { algorithm: 'HS256', expiresIn: '15m' } as jwt.SignOptions,
     );
     await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
       UnauthorizedException,
@@ -194,7 +222,7 @@ describe('AuthGuard — missing required claims', () => {
   });
 
   it('rejects payload without organizationId', async () => {
-    const token = signJwt(
+    const token = jwt.sign(
       {
         sub: 'u1',
         jti: 'x',
@@ -204,7 +232,7 @@ describe('AuthGuard — missing required claims', () => {
         role: 'STUDENT',
       },
       jwtConfig.secret,
-      '15m',
+      { algorithm: 'HS256', expiresIn: '15m' } as jwt.SignOptions,
     );
     await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
       UnauthorizedException,
@@ -212,7 +240,7 @@ describe('AuthGuard — missing required claims', () => {
   });
 
   it('rejects payload without role', async () => {
-    const token = signJwt(
+    const token = jwt.sign(
       {
         sub: 'u1',
         jti: 'x',
@@ -222,7 +250,7 @@ describe('AuthGuard — missing required claims', () => {
         organizationId: 'org-1',
       },
       jwtConfig.secret,
-      '15m',
+      { algorithm: 'HS256', expiresIn: '15m' } as jwt.SignOptions,
     );
     await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
       UnauthorizedException,
