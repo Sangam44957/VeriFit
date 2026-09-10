@@ -42,6 +42,9 @@ export class AppConfigService {
   readonly apiDocsEnabled: boolean;
   readonly nodeEnv: string;
   readonly jwtSecret: string;
+  readonly jwtExpiresIn: string;
+  readonly jwtIssuer: string;
+  readonly jwtAudience: string;
 
   constructor() {
     this.port = parsePort(process.env.API_PORT, 3001);
@@ -49,5 +52,8 @@ export class AppConfigService {
     this.apiDocsEnabled = parseBoolean(process.env.API_DOCS_ENABLED, false);
     this.nodeEnv = process.env.NODE_ENV ?? 'development';
     this.jwtSecret = requireString(process.env.JWT_SECRET, 'JWT_SECRET');
+    this.jwtExpiresIn = process.env.JWT_EXPIRATION ?? '15m';
+    this.jwtIssuer = requireString(process.env.JWT_ISSUER, 'JWT_ISSUER');
+    this.jwtAudience = requireString(process.env.JWT_AUDIENCE, 'JWT_AUDIENCE');
   }
 }

@@ -4,16 +4,15 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { hashPassword, verifyPassword, signJwt } from '@verifit/auth';
+import { hashPassword, verifyPassword, JwtService } from '@verifit/auth';
 import { PrismaService, Role } from '@verifit/database';
-import { AppConfigService } from '../config/app-config.service.js';
 import { LoginDto, RegisterDto } from './auth.dto.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: AppConfigService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,11 +47,12 @@ export class AuthService {
 
     if (!user || !valid) throw new UnauthorizedException('Invalid credentials');
 
-    const accessToken = signJwt(
-      { sub: user.id, email: user.email, role: user.role },
-      this.config.jwtSecret,
-      '1h',
-    );
+    const accessToken = this.jwtService.generateToken({
+      sub: user.id,
+      email: user.email,
+      organizationId: user.organizationId,
+      role: user.role,
+    });
 
     return { accessToken };
   }

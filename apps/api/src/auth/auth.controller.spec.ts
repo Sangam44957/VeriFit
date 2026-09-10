@@ -39,7 +39,9 @@ describe('AuthController', () => {
   let prismaMock: ReturnType<typeof makePrismaMock>;
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'test-secret';
+    process.env.JWT_SECRET = 'test-secret-32-chars-minimum-ok!!';
+    process.env.JWT_ISSUER = 'verifit';
+    process.env.JWT_AUDIENCE = 'verifit-api';
     process.env.API_PORT = '3099';
     process.env.CORS_ORIGINS = 'http://localhost:3000';
 

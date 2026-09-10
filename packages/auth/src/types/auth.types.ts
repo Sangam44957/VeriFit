@@ -8,7 +8,7 @@
 /** Canonical role — must stay in sync with the Prisma `Role` enum. */
 export type UserRole = 'ADMIN' | 'STAFF' | 'STUDENT';
 
-/** Account lifecycle state — enforced in auth logic; not yet a DB column. */
+/** Account lifecycle state — reserved for future use; not a DB column and not enforced anywhere yet. */
 export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'SUSPENDED';
 
 /**
@@ -45,13 +45,13 @@ export interface TokenRecordMetadata {
 /**
  * Authenticated user — hydrated from the validated JWT and attached to
  * the request context by the auth guard.
+ * Contains only claims established by the JWT contract.
  */
 export interface AuthenticatedUser {
   id: string;
   email: string;
   organizationId: string;
   role: UserRole;
-  accountStatus: AccountStatus;
 }
 
 /** Google OAuth profile shape returned by passport-google-oauth20. */
