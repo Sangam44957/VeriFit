@@ -6,11 +6,30 @@ import { Reflector } from '@nestjs/core';
 import { RoleGuard, ALLOWED_ROLES_KEY } from './role.guard.js';
 import type { AuthenticatedUser } from '@verifit/auth';
 
-const admin: AuthenticatedUser = { id: 'a1', email: 'a@x.com', organizationId: 'org-1', role: 'ADMIN' };
-const staff: AuthenticatedUser = { id: 's1', email: 's@x.com', organizationId: 'org-1', role: 'STAFF' };
-const student: AuthenticatedUser = { id: 'u1', email: 'u@x.com', organizationId: 'org-1', role: 'STUDENT' };
+const admin: AuthenticatedUser = {
+  id: 'a1',
+  email: 'a@x.com',
+  organizationId: 'org-1',
+  role: 'ADMIN',
+};
+const staff: AuthenticatedUser = {
+  id: 's1',
+  email: 's@x.com',
+  organizationId: 'org-1',
+  role: 'STAFF',
+};
+const student: AuthenticatedUser = {
+  id: 'u1',
+  email: 'u@x.com',
+  organizationId: 'org-1',
+  role: 'STUDENT',
+};
 
-function makeContext(user: AuthenticatedUser | undefined, handlerRoles?: string[], classRoles?: string[]) {
+function makeContext(
+  user: AuthenticatedUser | undefined,
+  handlerRoles?: string[],
+  classRoles?: string[],
+) {
   const handler = {};
   const cls = {};
   return {

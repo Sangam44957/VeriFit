@@ -1,4 +1,9 @@
-import { SetMetadata, createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  SetMetadata,
+  createParamDecorator,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import type { UserRole, AuthenticatedUser } from '@verifit/auth';
 import { ALLOWED_ROLES_KEY } from '../guards/index.js';

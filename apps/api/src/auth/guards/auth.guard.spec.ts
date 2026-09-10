@@ -20,7 +20,14 @@ const subject = {
   role: 'STUDENT' as const,
 };
 
-function makeContext(req: Partial<{ cookies: Record<string, string>; headers: Record<string, string>; method: string; path: string }>) {
+function makeContext(
+  req: Partial<{
+    cookies: Record<string, string>;
+    headers: Record<string, string>;
+    method: string;
+    path: string;
+  }>,
+) {
   return {
     switchToHttp: () => ({
       getRequest: () => ({ cookies: {}, headers: {}, method: 'GET', path: '/test', ...req }),
@@ -44,7 +51,9 @@ describe('AuthGuard — happy path', () => {
 
   it('allows valid JWT from Authorization header', async () => {
     const token = svc.generateToken(subject);
-    expect(await guard.canActivate(makeContext({ headers: { authorization: `Bearer ${token}` } }))).toBe(true);
+    expect(
+      await guard.canActivate(makeContext({ headers: { authorization: `Bearer ${token}` } })),
+    ).toBe(true);
   });
 
   it('attaches strongly typed AuthenticatedUser to req.user', async () => {
@@ -114,9 +123,9 @@ describe('AuthGuard — missing / malformed token', () => {
   });
 
   it('rejects completely invalid string', async () => {
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: 'garbage' } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: 'garbage' } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });
 
@@ -124,42 +133,42 @@ describe('AuthGuard — invalid / expired token', () => {
   it('rejects tampered signature', async () => {
     const token = svc.generateToken(subject);
     const tampered = token.slice(0, -4) + 'xxxx';
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: tampered } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: tampered } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects expired token', async () => {
     const shortSvc = new JwtService({ ...jwtConfig, expiresIn: '1ms' });
     const token = shortSvc.generateToken(subject);
     await new Promise((r) => setTimeout(r, 20));
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects token signed with wrong secret', async () => {
     const otherSvc = new JwtService({ ...jwtConfig, secret: 'completely-different-secret!!' });
     const token = otherSvc.generateToken(subject);
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects token with wrong issuer', async () => {
     const otherSvc = new JwtService({ ...jwtConfig, issuer: 'attacker' });
     const token = otherSvc.generateToken(subject);
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects token with wrong audience', async () => {
     const otherSvc = new JwtService({ ...jwtConfig, audience: 'wrong-audience' });
     const token = otherSvc.generateToken(subject);
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });
 
@@ -168,34 +177,55 @@ describe('AuthGuard — missing required claims', () => {
   // These tokens have valid signatures but incomplete payloads.
   it('rejects payload without sub', async () => {
     const token = signJwt(
-      { jti: 'x', iss: jwtConfig.issuer, aud: jwtConfig.audience, email: 'x@x.com', organizationId: 'org-1', role: 'STUDENT' },
+      {
+        jti: 'x',
+        iss: jwtConfig.issuer,
+        aud: jwtConfig.audience,
+        email: 'x@x.com',
+        organizationId: 'org-1',
+        role: 'STUDENT',
+      },
       jwtConfig.secret,
       '15m',
     );
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects payload without organizationId', async () => {
     const token = signJwt(
-      { sub: 'u1', jti: 'x', iss: jwtConfig.issuer, aud: jwtConfig.audience, email: 'x@x.com', role: 'STUDENT' },
+      {
+        sub: 'u1',
+        jti: 'x',
+        iss: jwtConfig.issuer,
+        aud: jwtConfig.audience,
+        email: 'x@x.com',
+        role: 'STUDENT',
+      },
       jwtConfig.secret,
       '15m',
     );
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects payload without role', async () => {
     const token = signJwt(
-      { sub: 'u1', jti: 'x', iss: jwtConfig.issuer, aud: jwtConfig.audience, email: 'x@x.com', organizationId: 'org-1' },
+      {
+        sub: 'u1',
+        jti: 'x',
+        iss: jwtConfig.issuer,
+        aud: jwtConfig.audience,
+        email: 'x@x.com',
+        organizationId: 'org-1',
+      },
       jwtConfig.secret,
       '15m',
     );
-    await expect(
-      guard.canActivate(makeContext({ cookies: { jwt: token } })),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeContext({ cookies: { jwt: token } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });
