@@ -25,6 +25,11 @@ export type {
   ResourceContext,
   AuthorizationResult,
 } from './services/authorization.service.js';
+export { AuthGuard } from './guards/index.js';
+export { RoleGuard } from './guards/index.js';
+export { AllowRoles, ALLOW_ROLES_KEY, CurrentUser } from './decorators/index.js';
+export { AuthModule } from './auth.module.js';
+export type { AuthModuleConfig } from './auth.module.js';
 
 export async function hashPassword(plain: string): Promise<string> {
   return argon2.hash(plain);
