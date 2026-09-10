@@ -104,3 +104,21 @@ export interface AuthResult<T = unknown> {
   errorCode?: string;
   timestamp: Date;
 }
+
+/** Returned to the client after a successful login (password or OAuth). */
+export interface LoginResponse {
+  accessToken: string;
+  user: {
+    id: string;
+    email: string;
+    organizationId: string;
+    role: UserRole;
+  };
+}
+
+/** Metadata attached to an in-flight OAuth state entry. */
+export interface OAuthStateMetadata {
+  state: string;
+  expiresAt: Date;
+  organizationId?: string;
+}
