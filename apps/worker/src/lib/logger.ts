@@ -15,10 +15,7 @@ function log(level: Level, message: string, data?: unknown): void {
   } else if (level === 'warn') {
     console.warn(line, data ?? '');
   } else {
-    // eslint-disable-next-line no-console -- this module is the sanctioned console
-    // wrapper; info/debug intentionally go to stdout (not console.warn/error) so log
-    // aggregators don't misclassify routine startup logs as warnings or errors.
-    console.log(line, data ?? '');
+    console.log(line, data ?? ''); // eslint-disable-line no-console
   }
 }
 

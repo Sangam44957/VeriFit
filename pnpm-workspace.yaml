@@ -5,6 +5,7 @@ overrides:
   postcss: '>=8.5.23'
   mysql2: '>=3.23.1'
   deepmerge-ts: '>=8.0.0'
+  multer: '>=2.3.0'
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
