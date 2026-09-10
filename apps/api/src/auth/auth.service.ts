@@ -1,12 +1,27 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { hashPassword, verifyPassword, JwtService, type UserRole } from '@verifit/auth';
+import { hashPassword, verifyPassword, JwtService, OAuthService, type UserRole } from '@verifit/auth';
 import { PrismaService, AuthRepository, Role } from '@verifit/database';
 import { LoginDto, RegisterDto } from './auth.dto.js';
+import { AuditService } from '../audit/audit.service.js';
+
+export interface OAuthCallbackResult {
+  accessToken: string;
+  expiresAt: Date;
+  user: {
+    id: string;
+    email: string;
+    organizationId: string;
+    role: UserRole;
+  };
+}
 
 @Injectable()
 export class AuthService {
@@ -14,6 +29,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly authRepository: AuthRepository,
+    private readonly oauthService: OAuthService | null,
+    private readonly auditService: AuditService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -67,20 +84,101 @@ export class AuthService {
     return { accessToken };
   }
 
-  resolveOAuthUser(
-    provider: string,
-    organizationId?: string,
-  ): (
-    googleSub: string,
-    email: string,
-    orgId?: string,
-  ) => Promise<{ id: string; email: string; organizationId: string; role: UserRole }> {
-    return (googleSub: string, email: string, orgId?: string) =>
-      this.authRepository.resolveOAuthUser({
-        provider,
-        providerUserId: googleSub,
-        providerEmail: email,
-        organizationId: orgId ?? organizationId,
-      }) as Promise<{ id: string; email: string; organizationId: string; role: UserRole }>;
+  initiateLogin(): { authorizationUrl: string } {
+    if (!this.oauthService) {
+      throw new ServiceUnavailableException('Google OAuth is not configured');
+    }
+    const { authorizationUrl } = this.oauthService.generateAuthorizationUrl();
+    return { authorizationUrl };
+  }
+
+  async handleOAuthCallback(
+    code: string,
+    state: string,
+    opts?: { ipAddress?: string; userAgent?: string },
+  ): Promise<OAuthCallbackResult> {
+    if (!this.oauthService) {
+      throw new ServiceUnavailableException('Google OAuth is not configured');
+    }
+
+    const result = await this.oauthService.handleCallback(
+      code,
+      state,
+      async (googleSub, _email) => {
+        const resolved = await this.authRepository.resolveOAuthUser({
+          provider: 'google',
+          providerUserId: googleSub,
+          providerEmail: _email,
+        });
+
+        if (resolved.accountStatus !== 'ACTIVE') {
+          throw new ForbiddenException(`Account is ${resolved.accountStatus.toLowerCase()}`);
+        }
+
+        return {
+          id: resolved.id,
+          email: resolved.email,
+          organizationId: resolved.organizationId,
+          role: resolved.role as UserRole,
+        };
+      },
+    );
+
+    const meta = this.jwtService.createTokenRecordMetadata(result.accessToken, opts);
+
+    await this.prisma.client.$transaction([
+      this.prisma.client.authToken.create({
+        data: {
+          userId: result.user.id,
+          jti: meta.jti,
+          expiresAt: meta.expiresAt,
+          ipAddress: meta.ipAddress ?? null,
+          userAgent: meta.userAgent ?? null,
+        },
+      }),
+      this.prisma.client.user.update({
+        where: { id: result.user.id },
+        data: {
+          lastLoginAt: new Date(),
+          lastLoginIpAddress: opts?.ipAddress ?? null,
+        },
+      }),
+    ]);
+
+    this.auditService.log({
+      action: 'oauth_login',
+      userId: result.user.id,
+      ipAddress: opts?.ipAddress,
+      userAgent: opts?.userAgent,
+    });
+
+    return {
+      accessToken: result.accessToken,
+      expiresAt: meta.expiresAt,
+      user: result.user,
+    };
+  }
+
+  async getMe(userId: string) {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, organizationId: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async logout(jti: string, userId?: string, opts?: { ipAddress?: string; userAgent?: string }): Promise<void> {
+    await this.authRepository.revoke(jti);
+    this.auditService.log({
+      action: 'logout',
+      userId: userId ?? 'unknown',
+      ipAddress: opts?.ipAddress,
+      userAgent: opts?.userAgent,
+    });
+  }
+
+  decodeJti(token: string): string | undefined {
+    return this.jwtService.decodeUnverifiedClaims(token)?.jti;
   }
 }

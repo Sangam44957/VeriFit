@@ -29,6 +29,14 @@ export interface ResolveOAuthUserInput {
   organizationId?: string;
 }
 
+export interface ResolvedOAuthUser {
+  id: string;
+  email: string;
+  organizationId: string;
+  role: string;
+  accountStatus: string;
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -79,63 +87,47 @@ export class AuthRepository {
   }
 
   /**
-   * Find-or-create a User from an OAuth provider identity.
-   * Upserts OAuthConnection keyed by (provider, providerUserId) — the verified
+   * Resolve an existing User from a verified OAuth provider identity.
+   * Looks up OAuthConnection by (provider, providerUserId) — the verified
    * provider subject — never by email.
+   *
+   * Unknown identities are denied: users must be pre-created by an admin.
+   * This is intentional for a campus placement system where membership
+   * must not be granted merely because someone has a Google account.
    */
   async resolveOAuthUser(
     input: ResolveOAuthUserInput,
-  ): Promise<{ id: string; email: string; organizationId: string; role: string }> {
-    const existing = await this.prisma.client.oAuthConnection.findUnique({
+  ): Promise<ResolvedOAuthUser> {
+    const connection = await this.prisma.client.oAuthConnection.findUnique({
       where: {
         provider_providerUserId: {
           provider: input.provider,
           providerUserId: input.providerUserId,
         },
       },
-      include: { user: { select: { id: true, email: true, organizationId: true, role: true } } },
-    });
-
-    if (existing) {
-      await this.prisma.client.oAuthConnection.update({
-        where: { id: existing.id },
-        data: { lastUsedAt: new Date(), providerEmail: input.providerEmail },
-      });
-      return existing.user;
-    }
-
-    if (!input.providerEmail) throw new Error('Cannot create user: no email from provider');
-    if (!input.organizationId) throw new Error('Cannot create user: no organizationId');
-
-    // Find existing user by email (account linking) or create a new one.
-    let user = await this.prisma.client.user.findUnique({
-      where: { email: input.providerEmail },
-      select: { id: true, email: true, organizationId: true, role: true },
-    });
-
-    if (!user) {
-      user = await this.prisma.client.user.create({
-        data: {
-          email: input.providerEmail,
-          passwordHash: '',
-          role: 'STUDENT',
-          organizationId: input.organizationId,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            organizationId: true,
+            role: true,
+            accountStatus: true,
+          },
         },
-        select: { id: true, email: true, organizationId: true, role: true },
-      });
-    }
-
-    await this.prisma.client.oAuthConnection.create({
-      data: {
-        userId: user.id,
-        provider: input.provider,
-        providerUserId: input.providerUserId,
-        providerEmail: input.providerEmail,
-        lastUsedAt: new Date(),
       },
     });
 
-    return user;
+    if (!connection) {
+      throw new Error('No account found for this Google identity. Contact your administrator.');
+    }
+
+    await this.prisma.client.oAuthConnection.update({
+      where: { id: connection.id },
+      data: { lastUsedAt: new Date(), providerEmail: input.providerEmail },
+    });
+
+    return connection.user;
   }
 }
 

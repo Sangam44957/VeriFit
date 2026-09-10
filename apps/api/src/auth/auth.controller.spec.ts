@@ -1,10 +1,12 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { AuthModule } from './auth.module.js';
 import { ConfigModule } from '../config/config.module.js';
 import { PrismaService } from '@verifit/database';
+import { AuthGuard } from './guards/index.js';
 
 const mockUser = {
   id: 'user_1',
@@ -22,12 +24,23 @@ function makePrismaMock() {
       user: {
         findUnique: vi.fn(),
         create: vi.fn(),
+        update: vi.fn().mockResolvedValue({}),
       },
       organization: {
         findUnique: vi.fn(),
       },
       authToken: {
         create: vi.fn().mockResolvedValue({}),
+        findUnique: vi.fn().mockResolvedValue(null),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      oAuthConnection: {
+        findUnique: vi.fn(),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      oAuthState: {
+        create: vi.fn().mockResolvedValue({}),
+        delete: vi.fn(),
       },
       $connect: vi.fn().mockResolvedValue(undefined),
       $disconnect: vi.fn().mockResolvedValue(undefined),
@@ -52,6 +65,7 @@ describe('AuthController', () => {
 
     const module = await Test.createTestingModule({
       imports: [ConfigModule, AuthModule],
+      providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
     })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
@@ -189,6 +203,99 @@ describe('AuthController', () => {
       });
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/v1/auth/google/login', () => {
+    it('302 — redirects to Google when OAuth is not configured (ServiceUnavailable surfaced as 503)', async () => {
+      // OAuth is not configured in this test module (no GOOGLE_* env vars)
+      const res = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+      // Without Google credentials the service throws 503
+      expect(res.status).toBe(503);
+    });
+  });
+
+  describe('GET /api/v1/auth/google/callback', () => {
+    it('503 — returns ServiceUnavailable when OAuth is not configured', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/google/callback')
+        .query({ code: 'some-code', state: 'some-state' });
+      expect(res.status).toBe(503);
+    });
+  });
+
+  describe('GET /api/v1/auth/me', () => {
+    it('401 — unauthenticated request is rejected', async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/auth/me');
+      expect(res.status).toBe(401);
+    });
+
+    it('200 — returns user profile for a valid JWT', async () => {
+      const { JwtService } = await import('@verifit/auth');
+      const jwtSvc = new JwtService({
+        secret: 'test-secret-32-chars-minimum-ok!!',
+        expiresIn: '15m',
+        issuer: 'verifit',
+        audience: 'verifit-api',
+      });
+      const token = jwtSvc.generateToken({
+        sub: 'user_1',
+        email: 'test@example.com',
+        organizationId: 'org_1',
+        role: 'STUDENT',
+      });
+
+      prismaMock.client.user.findUnique.mockResolvedValue({
+        id: 'user_1',
+        email: 'test@example.com',
+        role: 'STUDENT',
+        organizationId: 'org_1',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        id: 'user_1',
+        email: 'test@example.com',
+        role: 'STUDENT',
+        organizationId: 'org_1',
+      });
+    });
+  });
+
+  describe('POST /api/v1/auth/logout', () => {
+    it('401 — unauthenticated request is rejected', async () => {
+      const res = await request(app.getHttpServer()).post('/api/v1/auth/logout');
+      expect(res.status).toBe(401);
+    });
+
+    it('204 — revokes token and clears cookie for authenticated request', async () => {
+      const { JwtService } = await import('@verifit/auth');
+      const jwtSvc = new JwtService({
+        secret: 'test-secret-32-chars-minimum-ok!!',
+        expiresIn: '15m',
+        issuer: 'verifit',
+        audience: 'verifit-api',
+      });
+      const token = jwtSvc.generateToken({
+        sub: 'user_1',
+        email: 'test@example.com',
+        organizationId: 'org_1',
+        role: 'STUDENT',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(204);
+      // Cookie should be cleared
+      const setCookie = res.headers['set-cookie'] as string[] | string | undefined;
+      const cookieHeader = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
+      expect(cookieHeader).toMatch(/jwt=;/);
     });
   });
 });

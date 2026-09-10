@@ -48,6 +48,7 @@ export class AppConfigService {
   readonly googleClientId: string | undefined;
   readonly googleClientSecret: string | undefined;
   readonly googleRedirectUri: string | undefined;
+  readonly frontendUrl: string;
 
   constructor() {
     this.port = parsePort(process.env.API_PORT, 3001);
@@ -61,5 +62,6 @@ export class AppConfigService {
     this.googleClientId = process.env.GOOGLE_CLIENT_ID;
     this.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
     this.googleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
+    this.frontendUrl = process.env.FRONTEND_URL ?? this.corsOrigins[0];
   }
 }
