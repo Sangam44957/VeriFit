@@ -363,7 +363,8 @@ describe('OAuthService — unverified email rejected', () => {
   function stubGoogleResponses(userInfoOverride: Record<string, unknown>): void {
     vi.stubGlobal(
       'fetch',
-      vi.fn()
+      vi
+        .fn()
         // First call: token exchange
         .mockResolvedValueOnce({
           ok: true,
@@ -437,7 +438,8 @@ describe('OAuthService — Google sub binding', () => {
   function stubGoogleSuccess(sub: string, email: string): void {
     vi.stubGlobal(
       'fetch',
-      vi.fn()
+      vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
@@ -465,11 +467,7 @@ describe('OAuthService — Google sub binding', () => {
 
     await svc.handleCallback('auth-code', state, resolveUser);
 
-    expect(resolveUser).toHaveBeenCalledWith(
-      'google-sub-999',
-      'user@example.com',
-      undefined,
-    );
+    expect(resolveUser).toHaveBeenCalledWith('google-sub-999', 'user@example.com', undefined);
   });
 
   it('passes organizationId from state through to resolveUser', async () => {
@@ -499,7 +497,12 @@ describe('OAuthService — Google sub binding', () => {
 
       await svc.handleCallback('auth-code', state, async (googleSub) => {
         calls.push(googleSub);
-        return { id: 'user_01', email: 'shared@example.com', organizationId: 'org_01', role: 'STUDENT' as const };
+        return {
+          id: 'user_01',
+          email: 'shared@example.com',
+          organizationId: 'org_01',
+          role: 'STUDENT' as const,
+        };
       });
     }
 
@@ -578,7 +581,8 @@ describe('OAuthService — network failures do not leak secrets', () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
-        json: () => Promise.resolve({ error: 'invalid_client', client_secret: oauthConfig.clientSecret }),
+        json: () =>
+          Promise.resolve({ error: 'invalid_client', client_secret: oauthConfig.clientSecret }),
       }),
     );
 

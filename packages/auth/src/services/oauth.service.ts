@@ -36,7 +36,8 @@ export class InMemoryOAuthStateStore implements OAuthStateStore {
     const stored = this.#states.get(state);
     if (!stored) throw new Error('Invalid state parameter (CSRF protection)');
     this.#states.delete(state); // delete before expiry check — single-use regardless
-    if (stored.expiresAt < new Date()) throw new Error('State parameter expired. Please restart login.');
+    if (stored.expiresAt < new Date())
+      throw new Error('State parameter expired. Please restart login.');
     return stored;
   }
 
@@ -88,7 +89,11 @@ export class OAuthService {
   readonly #config: GoogleOAuthConfig;
   readonly #stateStore: OAuthStateStore;
 
-  constructor(jwtService: JwtService, config: GoogleOAuthConfig, stateStore: OAuthStateStore = new InMemoryOAuthStateStore()) {
+  constructor(
+    jwtService: JwtService,
+    config: GoogleOAuthConfig,
+    stateStore: OAuthStateStore = new InMemoryOAuthStateStore(),
+  ) {
     if (!config.clientId || !config.clientSecret || !config.redirectUri) {
       throw new Error('Google OAuth requires clientId, clientSecret, and redirectUri');
     }
@@ -98,7 +103,11 @@ export class OAuthService {
     this.#stateStore = stateStore;
   }
 
-  generateAuthorizationUrl(organizationId?: string): { authorizationUrl: string; state: string; expiresAt: Date } {
+  generateAuthorizationUrl(organizationId?: string): {
+    authorizationUrl: string;
+    state: string;
+    expiresAt: Date;
+  } {
     const state = randomUUID();
     const expiresAt = new Date(Date.now() + STATE_TTL_MS);
     this.#stateStore.set(state, { expiresAt, organizationId });
@@ -148,7 +157,11 @@ export class OAuthService {
   async handleCallback(
     code: string,
     state: string,
-    resolveUser: (googleSub: string, email: string, organizationId?: string) => Promise<{ id: string; email: string; organizationId: string; role: UserRole }>,
+    resolveUser: (
+      googleSub: string,
+      email: string,
+      organizationId?: string,
+    ) => Promise<{ id: string; email: string; organizationId: string; role: UserRole }>,
   ): Promise<LoginResponse> {
     const oauthState = this.verifyOAuthState(state);
     const tokens = await this.exchangeCodeForToken(code);

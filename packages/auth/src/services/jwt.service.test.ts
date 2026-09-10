@@ -123,7 +123,9 @@ describe('verifyToken', () => {
   it('rejects a token signed with none algorithm', () => {
     // Craft a header claiming alg:none
     const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-    const body = Buffer.from(JSON.stringify({ sub: 'x', jti: 'y', iss: config.issuer, aud: config.audience })).toString('base64url');
+    const body = Buffer.from(
+      JSON.stringify({ sub: 'x', jti: 'y', iss: config.issuer, aud: config.audience }),
+    ).toString('base64url');
     const noneToken = `${header}.${body}.`;
     expect(() => svc.verifyToken(noneToken)).toThrow();
   });

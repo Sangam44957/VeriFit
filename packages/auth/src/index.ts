@@ -1,7 +1,20 @@
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 
-export type { UserRole, AccountStatus, JwtPayload, TokenRecordMetadata, AuthenticatedUser, GoogleOAuthProfile, OAuthProviderConfig, TokenRecord, OAuthState, AuthResult, LoginResponse, OAuthStateMetadata } from './types/index.js';
+export type {
+  UserRole,
+  AccountStatus,
+  JwtPayload,
+  TokenRecordMetadata,
+  AuthenticatedUser,
+  GoogleOAuthProfile,
+  OAuthProviderConfig,
+  TokenRecord,
+  OAuthState,
+  AuthResult,
+  LoginResponse,
+  OAuthStateMetadata,
+} from './types/index.js';
 export { JwtService } from './services/jwt.service.js';
 export type { JwtConfig, TokenSubject } from './services/jwt.service.js';
 export { OAuthService, InMemoryOAuthStateStore } from './services/oauth.service.js';
