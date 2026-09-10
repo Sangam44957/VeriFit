@@ -19,6 +19,13 @@ export { JwtService } from './services/jwt.service.js';
 export type { JwtConfig, TokenSubject } from './services/jwt.service.js';
 export { OAuthService, InMemoryOAuthStateStore } from './services/oauth.service.js';
 export type { GoogleOAuthConfig, OAuthStateStore } from './services/oauth.service.js';
+export { AuthorizationService } from './services/authorization.service.js';
+export type {
+  ResourceType,
+  Action,
+  ResourceContext,
+  AuthorizationResult,
+} from './services/authorization.service.js';
 
 // Keep Role as a convenience alias so existing consumers are unaffected.
 export type Role = 'ADMIN' | 'STAFF' | 'STUDENT';
