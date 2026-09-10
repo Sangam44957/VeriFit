@@ -56,11 +56,7 @@ describe('JWT round-trip integration', () => {
       findByJti: vi.fn().mockResolvedValue(null), // not revoked by default
       revoke: vi.fn().mockResolvedValue({}),
     };
-    guard = new AuthGuard(
-      jwtService,
-      authRepository as unknown as AuthRepository,
-      makeReflector(),
-    );
+    guard = new AuthGuard(jwtService, authRepository as unknown as AuthRepository, makeReflector());
   });
 
   it('generate — produces a verifiable JWT with a jti claim', () => {
@@ -100,7 +96,8 @@ describe('JWT round-trip integration', () => {
     });
 
     const claims = jwtService.decodeUnverifiedClaims(token);
-    const jti = claims!.jti!;
+    if (!claims?.jti) throw new Error('Expected jti in token claims');
+    const jti = claims.jti;
 
     // Simulate revocation: repository now returns a record with revokedAt set
     authRepository.findByJti.mockResolvedValue({ jti, revokedAt: new Date() });
