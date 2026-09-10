@@ -183,11 +183,7 @@ describe('role action restrictions', () => {
   });
 
   it('allows ADMIN to delete a student globally', () => {
-    const result = svc.authorize(
-      admin,
-      'DELETE_STUDENT',
-      studentRes({ organizationId: 'org_z' }),
-    );
+    const result = svc.authorize(admin, 'DELETE_STUDENT', studentRes({ organizationId: 'org_z' }));
     expect(result.granted).toBe(true);
   });
 });
@@ -243,11 +239,7 @@ describe('no implicit role hierarchy', () => {
   it('STUDENT can UPDATE_STUDENT on own record — STAFF cannot delete (not inherited upward)', () => {
     // STUDENT has UPDATE_STUDENT; STAFF does not have DELETE_STUDENT
     expect(
-      svc.authorize(
-        student,
-        'UPDATE_STUDENT',
-        studentRes({ ownerUserId: student.id }),
-      ).granted,
+      svc.authorize(student, 'UPDATE_STUDENT', studentRes({ ownerUserId: student.id })).granted,
     ).toBe(true);
     expect(svc.authorize(staff, 'DELETE_STUDENT', studentRes()).granted).toBe(false);
   });
@@ -303,7 +295,9 @@ describe('ADMIN is not a bypass — explicit permissions only', () => {
 
   it('ADMIN global scope only applies to explicitly permitted resource+action pairs', () => {
     // Permitted: READ_USER on any org
-    expect(svc.authorize(admin, 'READ_USER', userRes({ organizationId: 'org_z' })).granted).toBe(true);
+    expect(svc.authorize(admin, 'READ_USER', userRes({ organizationId: 'org_z' })).granted).toBe(
+      true,
+    );
     // Not permitted: unknown action on a known resource
     expect(svc.authorize(admin, 'IMPERSONATE_USER' as never, userRes()).granted).toBe(false);
   });

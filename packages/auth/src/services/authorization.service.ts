@@ -99,11 +99,7 @@ const POLICY: ReadonlyArray<Permission> = Object.freeze([
   {
     role: 'STAFF',
     resource: 'STUDENT',
-    actions: Object.freeze([
-      'READ_STUDENT',
-      'UPDATE_STUDENT',
-      'LIST_STUDENTS',
-    ] as const),
+    actions: Object.freeze(['READ_STUDENT', 'UPDATE_STUDENT', 'LIST_STUDENTS'] as const),
     global: false,
   },
   {
@@ -157,7 +153,10 @@ export class AuthorizationService {
     const entry = POLICY.find((p) => p.role === user.role && p.resource === resource.type);
 
     if (!entry) {
-      return { granted: false, reason: `No policy for role=${user.role} resource=${resource.type}` };
+      return {
+        granted: false,
+        reason: `No policy for role=${user.role} resource=${resource.type}`,
+      };
     }
 
     if (!(entry.actions as ReadonlyArray<string>).includes(action)) {
