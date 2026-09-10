@@ -21,7 +21,11 @@ export interface OAuthStateStore {
    * Returns the metadata if valid and not expired, then removes it.
    * Throws if the state is unknown or expired.
    */
-  consume(state: string): { expiresAt: Date; organizationId?: string };
+  consume(
+    state: string,
+  ):
+    | { expiresAt: Date; organizationId?: string }
+    | Promise<{ expiresAt: Date; organizationId?: string }>;
 }
 
 export class InMemoryOAuthStateStore implements OAuthStateStore {
@@ -123,8 +127,8 @@ export class OAuthService {
     return { authorizationUrl: `${GOOGLE_AUTH_URL}?${params}`, state, expiresAt };
   }
 
-  verifyOAuthState(state: string): OAuthStateMetadata {
-    const stored = this.#stateStore.consume(state);
+  async verifyOAuthState(state: string): Promise<OAuthStateMetadata> {
+    const stored = await this.#stateStore.consume(state);
     return { state, expiresAt: stored.expiresAt, organizationId: stored.organizationId };
   }
 
@@ -163,7 +167,7 @@ export class OAuthService {
       organizationId?: string,
     ) => Promise<{ id: string; email: string; organizationId: string; role: UserRole }>,
   ): Promise<LoginResponse> {
-    const oauthState = this.verifyOAuthState(state);
+    const oauthState = await this.verifyOAuthState(state);
     const tokens = await this.exchangeCodeForToken(code);
     const profile = await this.getUserInfo(tokens.access_token);
 

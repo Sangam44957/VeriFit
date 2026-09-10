@@ -8,7 +8,7 @@
 /** Canonical role — must stay in sync with the Prisma `Role` enum. */
 export type UserRole = 'ADMIN' | 'STAFF' | 'STUDENT';
 
-/** Account lifecycle state — reserved for future use; not a DB column and not enforced anywhere yet. */
+/** Account lifecycle state — mirrors the `AccountStatus` Prisma enum (Task 1.6). */
 export type AccountStatus = 'ACTIVE' | 'LOCKED' | 'SUSPENDED';
 
 /**

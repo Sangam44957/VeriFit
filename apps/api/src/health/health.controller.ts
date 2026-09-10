@@ -3,9 +3,11 @@ import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { DatabaseHealthIndicator } from './database.health.js';
+import { Public } from '../auth/decorators/index.js';
 
 @ApiTags('Health')
 @Controller('health')
+@Public()
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,

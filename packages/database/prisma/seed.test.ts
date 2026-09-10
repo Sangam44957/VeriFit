@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { main, prisma } from './seed.js';
 
-describe('seed idempotency', () => {
+const DB_AVAILABLE = Boolean(process.env['DATABASE_URL']);
+
+describe.skipIf(!DB_AVAILABLE)('seed idempotency', () => {
   beforeAll(async () => {
     await main();
   });

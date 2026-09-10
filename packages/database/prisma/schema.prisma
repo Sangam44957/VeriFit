@@ -16,6 +16,13 @@ enum Role {
   STUDENT
 }
 
+// Authentication/account lifecycle state (Task 1.6)
+enum AccountStatus {
+  ACTIVE
+  LOCKED
+  SUSPENDED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -28,16 +35,25 @@ model Organization {
 }
 
 model User {
-  id             String       @id @default(cuid())
-  email          String       @unique
-  passwordHash   String
-  role           Role
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String        @id @default(cuid())
+  email               String        @unique
+  passwordHash        String
+  role                Role
+  organizationId      String
+  organization        Organization  @relation(fields: [organizationId], references: [id])
+  // Authentication account-security fields (Task 1.6)
+  accountStatus       AccountStatus @default(ACTIVE)
+  loginAttempts       Int           @default(0)
+  lockedUntil         DateTime?
+  // Activity/audit metadata (Task 1.6)
+  lastLoginAt         DateTime?
+  lastLoginIpAddress  String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  student Student?
+  student        Student?
+  authTokens     AuthToken[]
+  oauthConnections OAuthConnection[]
 
   @@index([organizationId])
   @@index([email])
@@ -53,6 +69,57 @@ model Student {
   updatedAt DateTime @updatedAt
 
   @@map("students")
+}
+
+// ============================================================================
+// AUTHENTICATION PERSISTENCE — Task 1.6
+// ============================================================================
+
+// Revocation metadata only — never stores raw JWT bearer tokens.
+// The jti claim is the revocation key, matching the JWT contract from Task 1.2.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jti       String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+// OAuth provider connections keyed by verified provider subject (sub), not email.
+// providerEmail is profile metadata only — never used as an identity key.
+model OAuthConnection {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       String
+  providerUserId String
+  providerEmail  String?
+  connectedAt    DateTime @default(now())
+  lastUsedAt     DateTime?
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_connections")
+}
+
+// Transient OAuth CSRF state — consumed atomically on callback.
+// Only persisted here to back a DB-based OAuthStateStore implementation.
+model OAuthState {
+  id        String   @id @default(cuid())
+  state     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("oauth_states")
 }
 
 // Future models added per phase — do not add business models here prematurely

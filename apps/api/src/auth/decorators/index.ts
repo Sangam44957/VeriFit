@@ -8,6 +8,9 @@ import type { Request } from 'express';
 import type { UserRole, AuthenticatedUser } from '@verifit/auth';
 import { ALLOWED_ROLES_KEY } from '../guards/index.js';
 
+export const IS_PUBLIC_KEY = 'is_public' as const;
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
 export const AllowRoles = (...roles: UserRole[]) => SetMetadata(ALLOWED_ROLES_KEY, roles);
 
 export const CurrentUser = createParamDecorator(

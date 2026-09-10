@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { DatabaseModule } from '@verifit/database';
-import { JwtService } from '@verifit/auth';
+import { DatabaseModule, AuthRepository, DbOAuthStateStore } from '@verifit/database';
+import { JwtService, OAuthService } from '@verifit/auth';
 import { AppConfigService } from '../config/app-config.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
@@ -12,6 +12,7 @@ import { RoleGuard } from './guards/index.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthRepository,
     {
       provide: JwtService,
       useFactory: (config: AppConfigService) =>
@@ -23,9 +24,31 @@ import { RoleGuard } from './guards/index.js';
         }),
       inject: [AppConfigService],
     },
+    {
+      provide: OAuthService,
+      useFactory: (
+        jwtService: JwtService,
+        config: AppConfigService,
+        stateStore: DbOAuthStateStore,
+      ) => {
+        if (!config.googleClientId || !config.googleClientSecret || !config.googleRedirectUri) {
+          return null;
+        }
+        return new OAuthService(
+          jwtService,
+          {
+            clientId: config.googleClientId,
+            clientSecret: config.googleClientSecret,
+            redirectUri: config.googleRedirectUri,
+          },
+          stateStore,
+        );
+      },
+      inject: [JwtService, AppConfigService, DbOAuthStateStore],
+    },
     AuthGuard,
     RoleGuard,
   ],
-  exports: [JwtService, AuthGuard, RoleGuard],
+  exports: [JwtService, OAuthService, AuthGuard, RoleGuard],
 })
 export class AuthModule {}

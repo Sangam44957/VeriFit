@@ -45,6 +45,9 @@ export class AppConfigService {
   readonly jwtExpiresIn: string;
   readonly jwtIssuer: string;
   readonly jwtAudience: string;
+  readonly googleClientId: string | undefined;
+  readonly googleClientSecret: string | undefined;
+  readonly googleRedirectUri: string | undefined;
 
   constructor() {
     this.port = parsePort(process.env.API_PORT, 3001);
@@ -55,5 +58,8 @@ export class AppConfigService {
     this.jwtExpiresIn = process.env.JWT_EXPIRATION ?? '15m';
     this.jwtIssuer = requireString(process.env.JWT_ISSUER, 'JWT_ISSUER');
     this.jwtAudience = requireString(process.env.JWT_AUDIENCE, 'JWT_AUDIENCE');
+    this.googleClientId = process.env.GOOGLE_CLIENT_ID;
+    this.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    this.googleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
   }
 }

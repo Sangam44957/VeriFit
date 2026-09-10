@@ -4,8 +4,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { hashPassword, verifyPassword, JwtService } from '@verifit/auth';
-import { PrismaService, Role } from '@verifit/database';
+import { hashPassword, verifyPassword, JwtService, type UserRole } from '@verifit/auth';
+import { PrismaService, AuthRepository, Role } from '@verifit/database';
 import { LoginDto, RegisterDto } from './auth.dto.js';
 
 @Injectable()
@@ -13,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly authRepository: AuthRepository,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -41,7 +42,7 @@ export class AuthService {
 
   private readonly dummyHash = '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$RUlORVhJU1RTREFUQQ';
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, opts?: { ipAddress?: string; userAgent?: string }) {
     const user = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
     const valid = await verifyPassword(dto.password, user?.passwordHash ?? this.dummyHash);
 
@@ -54,6 +55,32 @@ export class AuthService {
       role: user.role,
     });
 
+    const meta = this.jwtService.createTokenRecordMetadata(accessToken, opts);
+    await this.authRepository.createToken({
+      userId: user.id,
+      jti: meta.jti,
+      expiresAt: meta.expiresAt,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
     return { accessToken };
+  }
+
+  resolveOAuthUser(
+    provider: string,
+    organizationId?: string,
+  ): (
+    googleSub: string,
+    email: string,
+    orgId?: string,
+  ) => Promise<{ id: string; email: string; organizationId: string; role: UserRole }> {
+    return (googleSub: string, email: string, orgId?: string) =>
+      this.authRepository.resolveOAuthUser({
+        provider,
+        providerUserId: googleSub,
+        providerEmail: email,
+        organizationId: orgId ?? organizationId,
+      }) as Promise<{ id: string; email: string; organizationId: string; role: UserRole }>;
   }
 }

@@ -3,9 +3,11 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service.js';
 import { LoginDto, RegisterDto } from './auth.dto.js';
+import { Public } from './decorators/index.js';
 
 @ApiTags('Auth')
 @Controller('auth')
+@Public()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

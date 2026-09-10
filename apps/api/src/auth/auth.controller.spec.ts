@@ -26,6 +26,9 @@ function makePrismaMock() {
       organization: {
         findUnique: vi.fn(),
       },
+      authToken: {
+        create: vi.fn().mockResolvedValue({}),
+      },
       $connect: vi.fn().mockResolvedValue(undefined),
       $disconnect: vi.fn().mockResolvedValue(undefined),
     },
