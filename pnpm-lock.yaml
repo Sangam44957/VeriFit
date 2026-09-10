@@ -233,22 +233,37 @@ importers:
 
   packages/auth:
     dependencies:
+      '@nestjs/common':
+        specifier: ^12.0.1
+        version: 12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
+      '@nestjs/core':
+        specifier: ^12.0.1
+        version: 12.0.1(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.0.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       argon2:
         specifier: ^0.43.0
         version: 0.43.1
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+      reflect-metadata:
+        specifier: ^0.2.0
+        version: 0.2.2
       zod:
         specifier: ^3.22.0
         version: 3.25.76
     devDependencies:
+      '@nestjs/testing':
+        specifier: ^12.0.1
+        version: 12.0.1(@nestjs/common@12.0.1(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.1)(@nestjs/platform-express@12.0.1)
       '@types/jsonwebtoken':
         specifier: ^9.0.9
         version: 9.0.10
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
+      rxjs:
+        specifier: ^7.8.0
+        version: 7.8.2
       typescript:
         specifier: 5.9.3
         version: 5.9.3
