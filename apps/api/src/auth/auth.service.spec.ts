@@ -222,7 +222,10 @@ describe('AuthService', () => {
       const activeUser = makeUser({ accountStatus: 'ACTIVE' });
       const authRepository = makeAuthRepository();
       (authRepository.resolveOAuthUser as ReturnType<typeof vi.fn>).mockResolvedValue(activeUser);
-      const { service } = makeService({ authRepository, oauthService: makeOAuthService(activeUser) });
+      const { service } = makeService({
+        authRepository,
+        oauthService: makeOAuthService(activeUser),
+      });
 
       const result = await service.handleOAuthCallback('code', 'state');
 

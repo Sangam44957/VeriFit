@@ -40,7 +40,9 @@ function makePrismaMock() {
       },
       oAuthState: {
         create: vi.fn().mockResolvedValue({}),
-        delete: vi.fn().mockResolvedValue({ state: 'state', expiresAt: new Date(Date.now() + 600_000) }),
+        delete: vi
+          .fn()
+          .mockResolvedValue({ state: 'state', expiresAt: new Date(Date.now() + 600_000) }),
       },
       $transaction: vi.fn().mockImplementation((ops: unknown[]) => Promise.all(ops)),
       $connect: vi.fn().mockResolvedValue(undefined),
@@ -329,7 +331,9 @@ describe('AuthController — full HTTP auth flow (E2E)', () => {
     // Simulate jti revocation in the mock repository
     prismaMock.client.authToken.findUnique.mockImplementation(
       ({ where }: { where: { jti: string } }) =>
-        Promise.resolve(revokedJtis.has(where.jti) ? { jti: where.jti, revokedAt: new Date() } : null),
+        Promise.resolve(
+          revokedJtis.has(where.jti) ? { jti: where.jti, revokedAt: new Date() } : null,
+        ),
     );
     prismaMock.client.authToken.update.mockImplementation(
       ({ where }: { where: { jti: string } }) => {
@@ -414,28 +418,28 @@ describe('AuthController — OAuth callback flow', () => {
     process.env.FRONTEND_URL = 'http://localhost:3000';
 
     prismaMock = makePrismaMock();
-  // Track OAuth states created via set() to simulate DB-backed single-use behavior
-  const oAuthStates = new Map<string, Date>();
+    // Track OAuth states created via set() to simulate DB-backed single-use behavior
+    const oAuthStates = new Map<string, Date>();
 
-  prismaMock.client.oAuthState.create.mockImplementation(
-    ({ data }: { data: { state: string; expiresAt: Date } }) => {
-      oAuthStates.set(data.state, data.expiresAt);
-      return Promise.resolve({});
-    },
-  );
-  prismaMock.client.oAuthState.delete.mockImplementation(
-    ({ where }: { where: { state: string } }) => {
-      const expiresAt = oAuthStates.get(where.state);
-      if (!expiresAt) {
-        const err = Object.assign(new Error('Record not found'), { code: 'P2025' });
-        return Promise.reject(err);
-      }
-      oAuthStates.delete(where.state);
-      return Promise.resolve({ state: where.state, expiresAt });
-    },
-  );
+    prismaMock.client.oAuthState.create.mockImplementation(
+      ({ data }: { data: { state: string; expiresAt: Date } }) => {
+        oAuthStates.set(data.state, data.expiresAt);
+        return Promise.resolve({});
+      },
+    );
+    prismaMock.client.oAuthState.delete.mockImplementation(
+      ({ where }: { where: { state: string } }) => {
+        const expiresAt = oAuthStates.get(where.state);
+        if (!expiresAt) {
+          const err = Object.assign(new Error('Record not found'), { code: 'P2025' });
+          return Promise.reject(err);
+        }
+        oAuthStates.delete(where.state);
+        return Promise.resolve({ state: where.state, expiresAt });
+      },
+    );
 
-  prismaMock.client.oAuthConnection.findUnique.mockResolvedValue({
+    prismaMock.client.oAuthConnection.findUnique.mockResolvedValue({
       id: 'conn_1',
       userId: 'user_1',
       user: {
@@ -478,7 +482,8 @@ describe('AuthController — OAuth callback flow', () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({ access_token: 'google-access-token', token_type: 'Bearer' }),
+          json: () =>
+            Promise.resolve({ access_token: 'google-access-token', token_type: 'Bearer' }),
         })
         .mockResolvedValueOnce({
           ok: true,

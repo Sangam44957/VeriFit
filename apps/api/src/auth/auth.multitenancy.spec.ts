@@ -169,9 +169,11 @@ describe('resolveOAuthUser — org boundary via repository', () => {
 
   it('rejects an unknown sub — no cross-org fallback', async () => {
     const mockRepo = {
-      resolveOAuthUser: vi.fn().mockRejectedValue(
-        new Error('No account found for this Google identity. Contact your administrator.'),
-      ),
+      resolveOAuthUser: vi
+        .fn()
+        .mockRejectedValue(
+          new Error('No account found for this Google identity. Contact your administrator.'),
+        ),
     };
 
     await expect(
