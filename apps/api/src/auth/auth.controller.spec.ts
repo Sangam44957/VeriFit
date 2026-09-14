@@ -498,7 +498,8 @@ describe('AuthController — OAuth callback flow', () => {
     // Capture the state from the login initiation
     const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
     const location = loginRes.headers.location as string;
-    const state = new URL(location).searchParams.get('state')!;
+    const state = new URL(location).searchParams.get('state');
+    if (!state) throw new Error('OAuth state missing from redirect URL');
 
     stubGoogleSuccess('google-sub-123', 'student@example.com');
 
@@ -517,7 +518,8 @@ describe('AuthController — OAuth callback flow', () => {
 
   it('GET /auth/google/callback — jti is persisted (AuthToken.create called)', async () => {
     const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
-    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state');
+    if (!state) throw new Error('OAuth state missing from redirect URL');
 
     stubGoogleSuccess('google-sub-456', 'student@example.com');
 
@@ -540,7 +542,8 @@ describe('AuthController — OAuth callback flow', () => {
 
   it('GET /auth/google/callback — LOCKED account returns 403', async () => {
     const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
-    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state');
+    if (!state) throw new Error('OAuth state missing from redirect URL');
 
     stubGoogleSuccess('google-sub-locked', 'locked@example.com');
     prismaMock.client.oAuthConnection.findUnique.mockResolvedValueOnce({
@@ -564,7 +567,8 @@ describe('AuthController — OAuth callback flow', () => {
 
   it('GET /auth/google/callback — unknown Google sub returns error (no OAuthConnection)', async () => {
     const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
-    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state');
+    if (!state) throw new Error('OAuth state missing from redirect URL');
 
     stubGoogleSuccess('unknown-sub', 'nobody@example.com');
     prismaMock.client.oAuthConnection.findUnique.mockResolvedValueOnce(null);
