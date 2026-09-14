@@ -43,13 +43,21 @@ function makeAuthRepository() {
 
 function makeOAuthService(resolvedUser: ReturnType<typeof makeUser>) {
   return {
-    generateAuthorizationUrl: vi.fn().mockReturnValue({ authorizationUrl: 'https://accounts.google.com/o/oauth2/auth?...' }),
-    handleCallback: vi.fn().mockImplementation(
-      async (_code: string, _state: string, resolver: (sub: string, email: string) => Promise<unknown>) => {
-        const user = await resolver('google_sub_123', resolvedUser.email);
-        return { accessToken: 'signed.jwt.token', user };
-      },
-    ),
+    generateAuthorizationUrl: vi
+      .fn()
+      .mockReturnValue({ authorizationUrl: 'https://accounts.google.com/o/oauth2/auth?...' }),
+    handleCallback: vi
+      .fn()
+      .mockImplementation(
+        async (
+          _code: string,
+          _state: string,
+          resolver: (sub: string, email: string) => Promise<unknown>,
+        ) => {
+          const user = await resolver('google_sub_123', resolvedUser.email);
+          return { accessToken: 'signed.jwt.token', user };
+        },
+      ),
   } as unknown as OAuthService;
 }
 
@@ -78,20 +86,13 @@ function makeService(
 ) {
   const user = makeUser();
   const authRepository = overrides.authRepository ?? makeAuthRepository();
-  const oauthService = overrides.oauthService !== undefined
-    ? overrides.oauthService
-    : makeOAuthService(user);
+  const oauthService =
+    overrides.oauthService !== undefined ? overrides.oauthService : makeOAuthService(user);
   const prisma = overrides.prisma ?? makePrismaService();
   const jwtService = overrides.jwtService ?? makeJwtService();
   const auditService = overrides.auditService ?? makeAuditService();
 
-  const service = new AuthService(
-    prisma,
-    jwtService,
-    authRepository,
-    oauthService,
-    auditService,
-  );
+  const service = new AuthService(prisma, jwtService, authRepository, oauthService, auditService);
 
   return { service, user, authRepository, oauthService, prisma, jwtService, auditService };
 }
@@ -133,7 +134,11 @@ describe('AuthService', () => {
       const authRepository = makeAuthRepository();
       (authRepository.resolveOAuthUser as ReturnType<typeof vi.fn>).mockResolvedValue(user);
       const prisma = makePrismaService();
-      const { service } = makeService({ authRepository, prisma, oauthService: makeOAuthService(user) });
+      const { service } = makeService({
+        authRepository,
+        prisma,
+        oauthService: makeOAuthService(user),
+      });
 
       await service.handleOAuthCallback('code', 'state');
 
@@ -145,7 +150,11 @@ describe('AuthService', () => {
       const authRepository = makeAuthRepository();
       (authRepository.resolveOAuthUser as ReturnType<typeof vi.fn>).mockResolvedValue(user);
       const auditService = makeAuditService();
-      const { service } = makeService({ authRepository, auditService, oauthService: makeOAuthService(user) });
+      const { service } = makeService({
+        authRepository,
+        auditService,
+        oauthService: makeOAuthService(user),
+      });
 
       await service.handleOAuthCallback('code', 'state', { ipAddress: '1.2.3.4' });
 
@@ -161,11 +170,17 @@ describe('AuthService', () => {
       );
       // OAuthService resolver will call resolveOAuthUser which throws
       const oauthService = {
-        handleCallback: vi.fn().mockImplementation(
-          async (_c: string, _s: string, resolver: (sub: string, email: string) => Promise<unknown>) => {
-            await resolver('unknown_sub', 'nobody@example.com');
-          },
-        ),
+        handleCallback: vi
+          .fn()
+          .mockImplementation(
+            async (
+              _c: string,
+              _s: string,
+              resolver: (sub: string, email: string) => Promise<unknown>,
+            ) => {
+              await resolver('unknown_sub', 'nobody@example.com');
+            },
+          ),
       } as unknown as OAuthService;
 
       const { service } = makeService({ authRepository, oauthService });
@@ -183,7 +198,9 @@ describe('AuthService', () => {
 
       const { service } = makeService({ authRepository, oauthService });
 
-      await expect(service.handleOAuthCallback('code', 'state')).rejects.toThrow(ForbiddenException);
+      await expect(service.handleOAuthCallback('code', 'state')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('throws ServiceUnavailableException when OAuth is not configured', async () => {

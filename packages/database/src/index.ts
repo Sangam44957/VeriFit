@@ -95,9 +95,7 @@ export class AuthRepository {
    * This is intentional for a campus placement system where membership
    * must not be granted merely because someone has a Google account.
    */
-  async resolveOAuthUser(
-    input: ResolveOAuthUserInput,
-  ): Promise<ResolvedOAuthUser> {
+  async resolveOAuthUser(input: ResolveOAuthUserInput): Promise<ResolvedOAuthUser> {
     const connection = await this.prisma.client.oAuthConnection.findUnique({
       where: {
         provider_providerUserId: {

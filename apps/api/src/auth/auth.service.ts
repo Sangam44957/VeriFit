@@ -7,7 +7,13 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { hashPassword, verifyPassword, JwtService, OAuthService, type UserRole } from '@verifit/auth';
+import {
+  hashPassword,
+  verifyPassword,
+  JwtService,
+  OAuthService,
+  type UserRole,
+} from '@verifit/auth';
 import { PrismaService, AuthRepository, Role } from '@verifit/database';
 import { LoginDto, RegisterDto } from './auth.dto.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -168,7 +174,11 @@ export class AuthService {
     return user;
   }
 
-  async logout(jti: string, userId?: string, opts?: { ipAddress?: string; userAgent?: string }): Promise<void> {
+  async logout(
+    jti: string,
+    userId?: string,
+    opts?: { ipAddress?: string; userAgent?: string },
+  ): Promise<void> {
     await this.authRepository.revoke(jti);
     this.auditService.log({
       action: 'logout',

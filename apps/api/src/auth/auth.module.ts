@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
-import { DatabaseModule, AuthRepository, DbOAuthStateStore, PrismaService } from '@verifit/database';
+import {
+  DatabaseModule,
+  AuthRepository,
+  DbOAuthStateStore,
+  PrismaService,
+} from '@verifit/database';
 import { JwtService, OAuthService } from '@verifit/auth';
 import { AppConfigService } from '../config/app-config.service.js';
 import { AuthController } from './auth.controller.js';
