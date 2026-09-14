@@ -203,6 +203,32 @@ describe('AuthService', () => {
       );
     });
 
+    it('denies SUSPENDED account with ForbiddenException', async () => {
+      const suspendedUser = makeUser({ accountStatus: 'SUSPENDED' });
+      const authRepository = makeAuthRepository();
+      (authRepository.resolveOAuthUser as ReturnType<typeof vi.fn>).mockResolvedValue(
+        suspendedUser,
+      );
+      const oauthService = makeOAuthService(suspendedUser);
+
+      const { service } = makeService({ authRepository, oauthService });
+
+      await expect(service.handleOAuthCallback('code', 'state')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('allows ACTIVE account through', async () => {
+      const activeUser = makeUser({ accountStatus: 'ACTIVE' });
+      const authRepository = makeAuthRepository();
+      (authRepository.resolveOAuthUser as ReturnType<typeof vi.fn>).mockResolvedValue(activeUser);
+      const { service } = makeService({ authRepository, oauthService: makeOAuthService(activeUser) });
+
+      const result = await service.handleOAuthCallback('code', 'state');
+
+      expect(result.accessToken).toBeDefined();
+    });
+
     it('throws ServiceUnavailableException when OAuth is not configured', async () => {
       const { service } = makeService({ oauthService: null });
       await expect(service.handleOAuthCallback('code', 'state')).rejects.toThrow(

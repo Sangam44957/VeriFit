@@ -529,7 +529,75 @@ describe('OAuthService — Google sub binding', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 8. All network failures handled without leaking provider secrets
+// 8. OAuthService.verifyOAuthState — async contract
+// Tests the async method on OAuthService (not just the store directly).
+// ---------------------------------------------------------------------------
+
+describe('OAuthService — verifyOAuthState async contract', () => {
+  it('resolves with state metadata for a valid state', async () => {
+    const svc = makeService();
+    const { state, expiresAt } = svc.generateAuthorizationUrl();
+
+    const result = await svc.verifyOAuthState(state);
+
+    expect(result.state).toBe(state);
+    expect(result.expiresAt).toEqual(expiresAt);
+  });
+
+  it('rejects on second consumption of the same state (single-use)', async () => {
+    const svc = makeService();
+    const { state } = svc.generateAuthorizationUrl();
+
+    await svc.verifyOAuthState(state); // first — succeeds
+
+    await expect(svc.verifyOAuthState(state)).rejects.toThrow('Invalid state');
+  });
+
+  it('rejects for an unknown state', async () => {
+    const svc = makeService();
+
+    await expect(svc.verifyOAuthState('never-issued')).rejects.toThrow('Invalid state');
+  });
+
+  it('rejects for an expired state', async () => {
+    vi.useFakeTimers();
+    try {
+      const svc = makeService();
+      const { state } = svc.generateAuthorizationUrl();
+
+      vi.advanceTimersByTime(10 * 60 * 1000 + 1); // past 10-min TTL
+
+      await expect(svc.verifyOAuthState(state)).rejects.toThrow('expired');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('two concurrent states do not collide', async () => {
+    const svc = makeService();
+    const { state: s1 } = svc.generateAuthorizationUrl();
+    const { state: s2 } = svc.generateAuthorizationUrl();
+
+    expect(s1).not.toBe(s2);
+
+    const [r1, r2] = await Promise.all([svc.verifyOAuthState(s1), svc.verifyOAuthState(s2)]);
+
+    expect(r1.state).toBe(s1);
+    expect(r2.state).toBe(s2);
+  });
+
+  it('passes organizationId through verifyOAuthState', async () => {
+    const svc = makeService();
+    const { state } = svc.generateAuthorizationUrl('org_99');
+
+    const result = await svc.verifyOAuthState(state);
+
+    expect(result.organizationId).toBe('org_99');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. All network failures handled without leaking provider secrets
 // ---------------------------------------------------------------------------
 
 describe('OAuthService — network failures do not leak secrets', () => {

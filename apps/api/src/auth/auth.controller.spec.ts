@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import { AuthModule } from './auth.module.js';
 import { ConfigModule } from '../config/config.module.js';
 import { PrismaService } from '@verifit/database';
@@ -40,8 +40,9 @@ function makePrismaMock() {
       },
       oAuthState: {
         create: vi.fn().mockResolvedValue({}),
-        delete: vi.fn(),
+        delete: vi.fn().mockResolvedValue({ state: 'state', expiresAt: new Date(Date.now() + 600_000) }),
       },
+      $transaction: vi.fn().mockImplementation((ops: unknown[]) => Promise.all(ops)),
       $connect: vi.fn().mockResolvedValue(undefined),
       $disconnect: vi.fn().mockResolvedValue(undefined),
     },
@@ -297,5 +298,281 @@ describe('AuthController', () => {
       const cookieHeader = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
       expect(cookieHeader).toMatch(/jwt=;/);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Issue 3 — Full HTTP round-trip: login → /me → logout → rejected
+// Exercises the complete HTTP → Guard → Controller → Service → Repository chain
+// ---------------------------------------------------------------------------
+
+describe('AuthController — full HTTP auth flow (E2E)', () => {
+  let app: INestApplication;
+  let prismaMock: ReturnType<typeof makePrismaMock>;
+  // Track revoked jtis to simulate real repository behaviour
+  const revokedJtis = new Set<string>();
+
+  beforeAll(async () => {
+    process.env.JWT_SECRET = 'test-secret-32-chars-minimum-ok!!';
+    process.env.JWT_ISSUER = 'verifit';
+    process.env.JWT_AUDIENCE = 'verifit-api';
+    process.env.API_PORT = '3098';
+    process.env.CORS_ORIGINS = 'http://localhost:3000';
+
+    prismaMock = makePrismaMock();
+
+    const { hashPassword } = await import('@verifit/auth');
+    const hash = await hashPassword('password123');
+    prismaMock.client.user.findUnique.mockResolvedValue({ ...mockUser, passwordHash: hash });
+    prismaMock.client.user.create.mockResolvedValue(mockUser);
+
+    // Simulate jti revocation in the mock repository
+    prismaMock.client.authToken.findUnique.mockImplementation(
+      ({ where }: { where: { jti: string } }) =>
+        Promise.resolve(revokedJtis.has(where.jti) ? { jti: where.jti, revokedAt: new Date() } : null),
+    );
+    prismaMock.client.authToken.update.mockImplementation(
+      ({ where }: { where: { jti: string } }) => {
+        revokedJtis.add(where.jti);
+        return Promise.resolve({});
+      },
+    );
+
+    const module = await Test.createTestingModule({
+      imports: [ConfigModule, AuthModule],
+      providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prismaMock)
+      .compile();
+
+    app = module.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('login → /me → logout → same token rejected', async () => {
+    // Step 1: login — returns accessToken
+    const loginRes = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+      email: 'test@example.com',
+      password: 'password123',
+    });
+    expect(loginRes.status).toBe(200);
+    const { accessToken } = loginRes.body as { accessToken: string };
+    expect(typeof accessToken).toBe('string');
+
+    // Step 2: /me — authenticated request succeeds
+    prismaMock.client.user.findUnique.mockResolvedValueOnce({
+      id: 'user_1',
+      email: 'test@example.com',
+      role: 'STUDENT',
+      organizationId: 'org_1',
+    });
+    const meRes = await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(meRes.status).toBe(200);
+    expect(meRes.body).toMatchObject({ id: 'user_1', email: 'test@example.com' });
+
+    // Step 3: logout — revokes the jti
+    const logoutRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(logoutRes.status).toBe(204);
+
+    // Step 4: same token is now rejected (jti revoked)
+    const rejectedRes = await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`);
+    expect(rejectedRes.status).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Issue 4 — OAuth callback flow with mocked Google HTTP calls
+// Exercises GET /auth/google/callback → handleOAuthCallback → jti persisted
+// ---------------------------------------------------------------------------
+
+describe('AuthController — OAuth callback flow', () => {
+  let app: INestApplication;
+  let prismaMock: ReturnType<typeof makePrismaMock>;
+
+  beforeAll(async () => {
+    process.env.JWT_SECRET = 'test-secret-32-chars-minimum-ok!!';
+    process.env.JWT_ISSUER = 'verifit';
+    process.env.JWT_AUDIENCE = 'verifit-api';
+    process.env.API_PORT = '3097';
+    process.env.CORS_ORIGINS = 'http://localhost:3000';
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+    process.env.GOOGLE_REDIRECT_URI = 'http://localhost:3001/api/v1/auth/google/callback';
+    process.env.FRONTEND_URL = 'http://localhost:3000';
+
+    prismaMock = makePrismaMock();
+  // Track OAuth states created via set() to simulate DB-backed single-use behavior
+  const oAuthStates = new Map<string, Date>();
+
+  prismaMock.client.oAuthState.create.mockImplementation(
+    ({ data }: { data: { state: string; expiresAt: Date } }) => {
+      oAuthStates.set(data.state, data.expiresAt);
+      return Promise.resolve({});
+    },
+  );
+  prismaMock.client.oAuthState.delete.mockImplementation(
+    ({ where }: { where: { state: string } }) => {
+      const expiresAt = oAuthStates.get(where.state);
+      if (!expiresAt) {
+        const err = Object.assign(new Error('Record not found'), { code: 'P2025' });
+        return Promise.reject(err);
+      }
+      oAuthStates.delete(where.state);
+      return Promise.resolve({ state: where.state, expiresAt });
+    },
+  );
+
+  prismaMock.client.oAuthConnection.findUnique.mockResolvedValue({
+      id: 'conn_1',
+      userId: 'user_1',
+      user: {
+        id: 'user_1',
+        email: 'student@example.com',
+        organizationId: 'org_1',
+        role: 'STUDENT',
+        accountStatus: 'ACTIVE',
+      },
+    });
+
+    const module = await Test.createTestingModule({
+      imports: [ConfigModule, AuthModule],
+      providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prismaMock)
+      .compile();
+
+    app = module.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    await app.init();
+  });
+
+  afterAll(async () => {
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_REDIRECT_URI;
+    delete process.env.FRONTEND_URL;
+    await app.close();
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  function stubGoogleSuccess(sub: string, email: string): void {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: 'google-access-token', token_type: 'Bearer' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ sub, email, email_verified: true }),
+        }),
+    );
+  }
+
+  it('GET /auth/google/login — redirects to Google authorization URL', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('accounts.google.com');
+  });
+
+  it('GET /auth/google/callback — active user: sets JWT cookie and redirects to frontend', async () => {
+    // Capture the state from the login initiation
+    const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+    const location = loginRes.headers.location as string;
+    const state = new URL(location).searchParams.get('state')!;
+
+    stubGoogleSuccess('google-sub-123', 'student@example.com');
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'auth-code', state });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('/dashboard');
+
+    const setCookie = res.headers['set-cookie'] as string[] | string | undefined;
+    const cookieHeader = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
+    expect(cookieHeader).toContain('jwt=');
+    expect(cookieHeader).toContain('HttpOnly');
+  });
+
+  it('GET /auth/google/callback — jti is persisted (AuthToken.create called)', async () => {
+    const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+
+    stubGoogleSuccess('google-sub-456', 'student@example.com');
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'auth-code', state });
+
+    expect(prismaMock.client.$transaction).toHaveBeenCalled();
+  });
+
+  it('GET /auth/google/callback — wrong state returns 500 (CSRF protection)', async () => {
+    stubGoogleSuccess('google-sub-789', 'student@example.com');
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'auth-code', state: 'invalid-state' });
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it('GET /auth/google/callback — LOCKED account returns 403', async () => {
+    const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+
+    stubGoogleSuccess('google-sub-locked', 'locked@example.com');
+    prismaMock.client.oAuthConnection.findUnique.mockResolvedValueOnce({
+      id: 'conn_locked',
+      userId: 'user_locked',
+      user: {
+        id: 'user_locked',
+        email: 'locked@example.com',
+        organizationId: 'org_1',
+        role: 'STUDENT',
+        accountStatus: 'LOCKED',
+      },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'auth-code', state });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('GET /auth/google/callback — unknown Google sub returns error (no OAuthConnection)', async () => {
+    const loginRes = await request(app.getHttpServer()).get('/api/v1/auth/google/login');
+    const state = new URL(loginRes.headers.location as string).searchParams.get('state')!;
+
+    stubGoogleSuccess('unknown-sub', 'nobody@example.com');
+    prismaMock.client.oAuthConnection.findUnique.mockResolvedValueOnce(null);
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'auth-code', state });
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 });
